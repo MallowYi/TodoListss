@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "computedHash": "645b891da1edbae76ab79c7b088d4e73397464f8396edaf773c0e01971ce75d6"
+    },
+    "spec-kit-skill": {
+      "source": "feiskyer/claude-code-settings",
+      "sourceType": "github",
+      "computedHash": "2c7f20de4b2125541f1b96cd5a99f6738ec129026dda2d1ae7f726dac3894fb2"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "integration": "copilot",
+  "version": "0.4.5.dev0",
+  "installed_at": "2026-04-02T09:34:26.756601+00:00",
+  "files": {
+    ".github/agents/speckit.analyze.agent.md": "cc2ccad9ab1b97c44d21139dd976bea7fba7769accf799e429ef93f3869d8fee",
+    ".github/agents/speckit.checklist.agent.md": "f5b732abcd53392fa37117170455ce13cf4e7cf4b5f30f4b181f9d6df8d492bb",
+    ".github/agents/speckit.clarify.agent.md": "e0e7575cada8e652773844715496c1b6afacf166bd993c922d7a8ab23e34d02b",
+    ".github/agents/speckit.constitution.agent.md": "9f312fa49b83ca084eebce115e28fc0e448ed0d9823a98a895e1108202fe0807",
+    ".github/agents/speckit.implement.agent.md": "7e39766f081995cb1139efd875de3a2a9fffb664790aeb0be4af7bce685ad1b7",
+    ".github/agents/speckit.plan.agent.md": "96afab4927a96995325ba3e4824f307568805908cba3524e859cc24bd1484bd4",
+    ".github/agents/speckit.specify.agent.md": "1db531498794ea013fb365aebbecd9f92b425046822b9bb03da530ec81e22425",
+    ".github/agents/speckit.tasks.agent.md": "af4e826b9c0e298923a90a9b95e6d0053ed268a3632a0de6e4264896e7d45ac8",
+    ".github/agents/speckit.taskstoissues.agent.md": "7b17195dc8caf623963ef804c57b1adaf34326d36eee03b67007c36619822f7c",
+    ".github/prompts/speckit.analyze.prompt.md": "e1f1eb473a72599125271065ecf56369370956820617051a75c1cfbc05d89f1d",
+    ".github/prompts/speckit.checklist.prompt.md": "f6424a7b31b6bc0d4df3030a8da13441110e31f96462a1f8c2309a06e0e92964",
+    ".github/prompts/speckit.clarify.prompt.md": "215a54d91424f1398e043f56637efaa5a2e2b76874e49ad501abd27681868317",
+    ".github/prompts/speckit.constitution.prompt.md": "22db90323c538e7123facf54aa08441cd1cd8083eec17cc85ccd99cb8bce9f44",
+    ".github/prompts/speckit.implement.prompt.md": "04a7a14009c4d60892ca5697a55945391063cefd98a20b0ae7f8c2b0d981a087",
+    ".github/prompts/speckit.plan.prompt.md": "0cfb48d15fb53ce3e85b03ab43595bba53978766a4f369c653b9b7cf091844cc",
+    ".github/prompts/speckit.specify.prompt.md": "69e42a0d47265f6ed96c6fb0235cb5bef093f34065c1bdeddb85f4383f65455f",
+    ".github/prompts/speckit.tasks.prompt.md": "e80cc4106a3eaf93dbb6ede464b903d499ebdfaba58a64c442569dcefd2d979b",
+    ".github/prompts/speckit.taskstoissues.prompt.md": "925bf3b4977f4f8ec3181ed5afab3e4642622f23c3bc77b4853a89904d0e6829",
+    ".vscode/settings.json": "c6782d67fc76b9128803b03247ddd015d542a574ee80a4fe0aca2429aa7bfe08",
+    ".specify/integrations/copilot/scripts/update-context.ps1": "31b3cb0e13a4cbb93932ee0ac5de79436b30f58b1da63f73f8e82ca8050b9ea3",
+    ".specify/integrations/copilot/scripts/update-context.sh": "89abb5cf143d07d9bd4cb4e4fe2623ec850933674a5c3d2ce2236c65c99d4100"
+  }
+}

@@ -1,0 +1,30 @@
+# OS files
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node.js
+node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+
+# Tool-generated local junctions at repo root
+/.claude/
+/.codebuddy/
+/.qoder/
+/skills/
