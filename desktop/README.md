@@ -1,30 +1,26 @@
-# React + TypeScript + Vite
+# TodoListss desktop workspace
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+这个目录是 TodoListss 的 **Electron + React + TypeScript** 桌面版工作区。
 
-Currently, two official plugins are available:
+完整项目说明、仓库结构和本地启动方式请优先看仓库根目录的 `README.md`。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 快速开始
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+```powershell
+cd .\desktop
+npm install
+npm run dev
 ```
 
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
+## 常用命令
+
+```powershell
+npm run lint
+npm run build
+npm run dist:win
+```
+
+## 说明
+
+- 挂件贴边、自动隐藏、边缘呼出等窗口能力依赖 Electron 原生窗口
+- 如果只是浏览器预览，界面可以看，但不会具备完整挂件行为
