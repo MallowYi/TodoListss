@@ -1,0 +1,418 @@
+﻿<Window x:Class="TodoListss.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="clr-namespace:TodoListss.App.Views"
+        mc:Ignorable="d"
+        Title="TodoListss"
+        Width="480"
+        Height="680"
+        MinWidth="360"
+        MinHeight="480"
+        WindowStartupLocation="Manual"
+        Background="#FF0F172A">
+    <Border Background="#FF111827">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="Padding" Value="12" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                        <Setter Property="Padding" Value="6" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0"
+                    Background="#FF1E293B"
+                    CornerRadius="12"
+                    Margin="0,0,0,12">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Padding" Value="12" />
+                        <Setter Property="Margin" Value="0,0,0,12" />
+                        <Setter Property="CornerRadius" Value="12" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                <Setter Property="Padding" Value="8,5" />
+                                <Setter Property="Margin" Value="0,0,0,6" />
+                                <Setter Property="CornerRadius" Value="10" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0"
+                            Height="6"
+                            Margin="56,0"
+                            HorizontalAlignment="Stretch"
+                            Background="#55E2E8F0"
+                            CornerRadius="999"
+                            Cursor="SizeAll"
+                            PreviewMouseLeftButtonDown="WidgetDragHandle_OnPreviewMouseLeftButtonDown">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+
+                    <Grid Grid.Row="1">
+                        <Grid.Style>
+                            <Style TargetType="Grid">
+                                <Setter Property="Visibility" Value="Visible" />
+                                <Setter Property="Margin" Value="0" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                        <Setter Property="Margin" Value="0,6,0,0" />
+                                    </DataTrigger>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsWidgetMode}" Value="True" />
+                                            <Condition Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Border}}" Value="False" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Grid.Style>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Cursor="SizeAll"
+                                    PreviewMouseLeftButtonDown="WidgetDragHandle_OnPreviewMouseLeftButtonDown">
+                            <TextBlock Text="TodoListss"
+                                       FontWeight="SemiBold"
+                                       Foreground="White"
+                                       TextTrimming="CharacterEllipsis">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontSize" Value="20" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                                <Setter Property="FontSize" Value="13" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                            <TextBlock Text="{Binding ModeSummary}"
+                                       Margin="0,4,0,0"
+                                       Foreground="#FFD1D5DB"
+                                       TextTrimming="CharacterEllipsis">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontSize" Value="12" />
+                                        <Setter Property="TextWrapping" Value="NoWrap" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                                <Setter Property="FontSize" Value="10" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Top">
+                            <Button Command="{Binding ToggleWidgetModeCommand}"
+                                    Content="{Binding ToggleWidgetModeButtonText}"
+                                    Margin="0,0,6,0">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Padding" Value="12,6" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                                <Setter Property="Padding" Value="8,4" />
+                                                <Setter Property="FontSize" Value="11" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                            <Button Content="Close"
+                                    Click="CloseButton_OnClick">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Padding" Value="12,6" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                                <Setter Property="Padding" Value="8,4" />
+                                                <Setter Property="FontSize" Value="11" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1"
+                    Background="#FF1F2937"
+                    CornerRadius="12"
+                    Padding="12"
+                    Margin="0,0,0,12">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Padding" Value="12" />
+                        <Setter Property="Margin" Value="0,0,0,12" />
+                        <Setter Property="CornerRadius" Value="12" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                <Setter Property="Padding" Value="8,6" />
+                                <Setter Property="Margin" Value="0,0,0,6" />
+                                <Setter Property="CornerRadius" Value="10" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox Grid.Column="0"
+                             Margin="0,0,8,0"
+                             Text="{Binding NewTodoTitle, UpdateSourceTrigger=PropertyChanged}"
+                             VerticalContentAlignment="Center"
+                             Padding="10,8"
+                             FontSize="14"
+                             KeyDown="NewTodoInput_OnKeyDown">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Margin" Value="0,0,8,0" />
+                                <Setter Property="Padding" Value="10,8" />
+                                <Setter Property="FontSize" Value="14" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                        <Setter Property="Margin" Value="0,0,6,0" />
+                                        <Setter Property="Padding" Value="7,4" />
+                                        <Setter Property="FontSize" Value="11" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+
+                    <Button Grid.Column="1"
+                            Content="Add"
+                            Command="{Binding AddTodoCommand}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Padding" Value="14,8" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                        <Setter Property="Padding" Value="10,5" />
+                                        <Setter Property="FontSize" Value="11" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2"
+                    Background="#0FFFFFFF"
+                    CornerRadius="12"
+                    Padding="8">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Padding" Value="8" />
+                        <Setter Property="CornerRadius" Value="12" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                <Setter Property="Padding" Value="4" />
+                                <Setter Property="CornerRadius" Value="10" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <ListBox ItemsSource="{Binding Todos}"
+                         SelectedItem="{Binding SelectedTodo, Mode=TwoWay}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#303B82F6" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <views:TodoItemControl />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <Border Grid.Row="3"
+                    Background="#FF1F2937"
+                    CornerRadius="12"
+                    Padding="12"
+                    Margin="0,12,0,12"
+                    Visibility="{Binding HasSelectedTodo, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Padding" Value="12" />
+                        <Setter Property="Margin" Value="0,12,0,12" />
+                        <Setter Property="CornerRadius" Value="12" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                <Setter Property="Padding" Value="8,6" />
+                                <Setter Property="Margin" Value="0,6,0,6" />
+                                <Setter Property="CornerRadius" Value="10" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Edit selected task"
+                               FontWeight="SemiBold"
+                               Foreground="White">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontSize" Value="14" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                        <Setter Property="FontSize" Value="11" />
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+
+                    <TextBox Grid.Row="1"
+                             Margin="0,10,0,10"
+                             Text="{Binding EditTodoTitle, UpdateSourceTrigger=PropertyChanged}"
+                             Padding="10,8"
+                             KeyDown="EditTodoInput_OnKeyDown">
+                        <TextBox.Style>
+                            <Style TargetType="TextBox">
+                                <Setter Property="Margin" Value="0,10,0,10" />
+                                <Setter Property="Padding" Value="10,8" />
+                                <Setter Property="FontSize" Value="13" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                        <Setter Property="Margin" Value="0,0,0,6" />
+                                        <Setter Property="Padding" Value="7,4" />
+                                        <Setter Property="FontSize" Value="11" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBox.Style>
+                    </TextBox>
+
+                    <StackPanel Grid.Row="2"
+                                Orientation="Horizontal"
+                                HorizontalAlignment="Right">
+                        <Button Content="Save"
+                                Command="{Binding SaveSelectedTodoCommand}"
+                                Margin="0,0,8,0">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Padding" Value="14,8" />
+                                    <Setter Property="Margin" Value="0,0,8,0" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                            <Setter Property="Padding" Value="10,5" />
+                                            <Setter Property="Margin" Value="0,0,6,0" />
+                                            <Setter Property="FontSize" Value="11" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                        <Button Content="Delete"
+                                Command="{Binding DeleteSelectedTodoCommand}">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Padding" Value="14,8" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                            <Setter Property="Padding" Value="10,5" />
+                                            <Setter Property="FontSize" Value="11" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="4"
+                    Background="#331E293B"
+                    CornerRadius="10"
+                    Padding="10,8">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Padding" Value="10,8" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                <Setter Property="Padding" Value="6,4" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="#FFD1D5DB"
+                           TextWrapping="Wrap">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="FontSize" Value="12" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsWidgetMode}" Value="True">
+                                    <Setter Property="FontSize" Value="10" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

@@ -1,50 +1,40 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# TodoListss Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Windows-Native Desktop Experience
+The application MUST behave like a polished Windows desktop app first, not a browser app wrapped for desktop. Window behavior, drag interactions, topmost behavior, compact widget transitions, and screen-edge handling MUST feel native on Windows 10/11. Any design choice that weakens native window control or reliability must be rejected unless there is a documented user benefit that cannot be achieved otherwise.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Local-First Reliability
+The app MUST remain fully usable offline and MUST persist user todo data and window preferences locally. User data loss is unacceptable during normal operation. Persistence changes MUST be explicit, recoverable where practical, and validated against malformed or missing local state.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Testable Separation of Concerns
+Business rules, persistence, and window-mode behavior MUST be implemented in testable units rather than buried directly in UI event handlers. UI code may coordinate platform APIs, but state transitions, widget-mode rules, docking logic, and persistence behavior MUST be kept in services or view models that can be exercised by automated tests.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Behavior-Driven Quality Gates
+Every user-visible workflow added to the app MUST have an executable validation path. Core todo operations, persistence, widget mode toggling, and edge auto-hide behavior MUST be covered by automated tests where practical, plus a documented manual verification path for window-manager interactions that are difficult to fully simulate.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Simplicity Over Speculation
+The first release MUST focus on a single-user Windows TodoList experience with a strong widget mode. Features such as cloud sync, collaboration, accounts, reminders, or mobile clients are out of scope until the local desktop experience is stable. New complexity must be justified against immediate user value.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Technical Constraints
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- The implementation stack for this repository is C# on .NET with WPF.
+- The app MUST run on Windows desktop environments supported by the installed .NET desktop runtime.
+- Local persistence MUST use straightforward file-based storage that can be inspected and backed up by the user.
+- The widget mode MUST support borderless rendering, always-on-top behavior, drag repositioning, and automatic hide/reveal at desktop edges.
+- The repository MUST remain buildable with standard `dotnet` tooling.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development Workflow and Quality Gates
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- Work follows the Spec-Kit sequence: constitution, specification, plan, tasks, implementation, and validation.
+- Every significant behavioral change MUST be reflected in the relevant spec artifacts before or alongside implementation.
+- New code MUST build cleanly with `dotnet build`.
+- Automated tests MUST pass before a task is considered complete.
+- Manual validation notes MUST be recorded for behaviors that depend on Windows shell interactions, topmost rules, or pointer-triggered edge reveal.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution governs architecture and delivery decisions for the repository. Plans, tasks, and implementations MUST explicitly satisfy these principles or document why an exception is necessary. Any amendment must update the constitution, associated spec artifacts, and validation expectations in the same change set.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-04-02

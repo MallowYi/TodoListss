@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/MallowYi/TodoListss/specs/001-desktop-todolist/contracts/todo-state.schema.json",
+  "title": "TodoListss Persisted State",
+  "type": "object",
+  "required": ["version", "todos", "settings"],
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "todos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "isCompleted", "createdAtUtc", "updatedAtUtc", "sortOrder"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "notes": {
+            "type": ["string", "null"]
+          },
+          "isCompleted": {
+            "type": "boolean"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sortOrder": {
+            "type": "integer"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "settings": {
+      "type": "object",
+      "required": ["isWidgetModeEnabled", "dockEdge", "isAutoHidden", "peekThickness"],
+      "properties": {
+        "isWidgetModeEnabled": {
+          "type": "boolean"
+        },
+        "dockEdge": {
+          "type": "string",
+          "enum": ["None", "Left", "Right", "Top"]
+        },
+        "isAutoHidden": {
+          "type": "boolean"
+        },
+        "peekThickness": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 24
+        },
+        "normalWindowBounds": {
+          "$ref": "#/$defs/windowPlacement"
+        },
+        "widgetWindowBounds": {
+          "$ref": "#/$defs/windowPlacement"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "windowPlacement": {
+      "type": "object",
+      "required": ["left", "top", "width", "height"],
+      "properties": {
+        "left": {
+          "type": "number"
+        },
+        "top": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
