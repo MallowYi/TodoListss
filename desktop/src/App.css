@@ -148,14 +148,14 @@
 
 .widget-column {
   display: flex;
-  flex: 0 0 220px;
+  flex: 0 0 212px;
   flex-direction: column;
-  gap: 12px;
-  min-width: 220px;
-  max-width: 220px;
+  gap: 10px;
+  min-width: 212px;
+  max-width: 212px;
   height: 100%;
   min-height: 0;
-  padding: 12px;
+  padding: 10px 10px 12px;
   border-radius: 14px;
   background: rgba(241, 245, 249, 0.94);
   box-shadow: 0 10px 22px rgba(2, 24, 64, 0.12);
@@ -176,30 +176,30 @@
 }
 
 .widget-column__header h2 {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: #0f172a;
-  font-size: 1.04rem;
+  font-size: 0.96rem;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .widget-column__eyebrow {
   color: rgba(51, 65, 85, 0.64);
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .widget-column__count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
-  min-height: 30px;
-  padding: 0 10px;
+  min-width: 32px;
+  min-height: 28px;
+  padding: 0 8px;
   border-radius: 999px;
   color: #334155;
   background: rgba(148, 163, 184, 0.16);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 600;
 }
 
@@ -207,11 +207,12 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
   scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
 .widget-board::-webkit-scrollbar,
@@ -238,8 +239,8 @@
 .widget-column__empty {
   display: grid;
   gap: 8px;
-  min-height: 92px;
-  padding: 14px;
+  min-height: 84px;
+  padding: 12px;
   border: 1px dashed rgba(71, 85, 105, 0.18);
   border-radius: 12px;
   color: rgba(51, 65, 85, 0.78);
@@ -250,20 +251,21 @@
 
 .widget-column__empty span {
   color: #1e293b;
+  font-size: 0.96rem;
   font-weight: 600;
 }
 
 .widget-column__empty p {
   margin: 0;
   line-height: 1.5;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
 }
 
 .widget-board-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.98);
@@ -315,8 +317,8 @@
 }
 
 .widget-board-card__accent {
-  width: 46px;
-  height: 6px;
+  width: 38px;
+  height: 5px;
   border-radius: 999px;
 }
 
@@ -343,19 +345,19 @@
 .widget-board-card__header {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
 }
 
 .widget-board-card__badge {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0 10px;
+  min-height: 22px;
+  padding: 0 8px;
   border-radius: 999px;
   color: #334155;
   background: rgba(148, 163, 184, 0.14);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
 }
 
@@ -363,8 +365,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: 1px solid rgba(148, 163, 184, 0.34);
   border-radius: 999px;
@@ -388,29 +390,50 @@
   background: linear-gradient(135deg, #86efac, #5eead4);
 }
 
+.widget-board-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 188px;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+.widget-board-card__content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.widget-board-card__content::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.34);
+}
+
 .widget-board-card h3 {
   margin: 0;
   color: #0f172a;
-  font-size: 1.02rem;
-  line-height: 1.45;
+  font-size: 0.94rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .widget-board-card p {
-  display: -webkit-box;
   margin: 0;
-  overflow: hidden;
   color: rgba(51, 65, 85, 0.78);
-  line-height: 1.55;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .widget-board-card__meta {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   color: rgba(71, 85, 105, 0.76);
-  font-size: 0.8rem;
+  font-size: 0.74rem;
 }
 
 
@@ -1054,9 +1077,9 @@
   }
 
   .widget-column {
-    flex-basis: 224px;
-    min-width: 224px;
-    max-width: 224px;
+    flex-basis: 216px;
+    min-width: 216px;
+    max-width: 216px;
   }
 
   .dashboard {

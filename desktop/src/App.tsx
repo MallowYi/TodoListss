@@ -573,7 +573,7 @@ function App() {
                       }}
                       role="button"
                       tabIndex={0}
-                      title={todo.title}
+                      title={todo.notes ? `${todo.title}\n\n${todo.notes}` : todo.title}
                     >
                       <div className={`widget-board-card__accent widget-board-card__accent--${todo.accent}`} />
 
@@ -592,8 +592,10 @@ function App() {
                         </button>
                       </div>
 
-                      <h3>{todo.title}</h3>
-                      {todo.notes ? <p>{todo.notes}</p> : null}
+                      <div className="widget-board-card__content">
+                        <h3>{todo.title}</h3>
+                        {todo.notes ? <p>{todo.notes}</p> : null}
+                      </div>
 
                       <div className="widget-board-card__meta">
                         <span>{todo.notes ? '附带备注' : '仅标题卡片'}</span>
