@@ -256,13 +256,14 @@ orleans.codegen.cs
 # (https://github.com/github/gitignore/pull/1529#issuecomment-104372622)
 #bower_components/
 
-# Tool-generated local junctions at repo root
-/.claude/
-/.codebuddy/
-/.qoder/
-/skills/
-/desktop/dist/
-/desktop/dist-electron/
+ # Tool-generated local junctions at repo root
+ /.claude/
+ /.codebuddy/
+ /.qoder/
+ /.worktrees/
+ /skills/
+ /desktop/dist/
+ /desktop/dist-electron/
 
 # RIA/Silverlight projects
 Generated_Code/
