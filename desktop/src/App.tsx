@@ -192,6 +192,36 @@ function App() {
   const [bridgeMode, setBridgeMode] = useState<BridgeMode>(() => getDesktopBridgeMode())
   const [draftTitle, setDraftTitle] = useState('')
   const [draftNotes, setDraftNotes] = useState('')
+  const [isWidgetCreateDialogOpen, setIsWidgetCreateDialogOpen] = useState(false)
+  const [widgetCreateTitle, setWidgetCreateTitle] = useState('')
+  const widgetCreateTitleTrimmed = widgetCreateTitle.trim()
+  const canSubmitWidgetCreate = widgetCreateTitleTrimmed.length > 0
+
+  function openWidgetCreateDialog(): void {
+    setWidgetCreateTitle('')
+    setIsWidgetCreateDialogOpen(true)
+  }
+
+  function closeWidgetCreateDialog(): void {
+    setWidgetCreateTitle('')
+    setIsWidgetCreateDialogOpen(false)
+  }
+
+  function handleWidgetCreateSubmit(): void {
+    if (!canSubmitWidgetCreate) {
+      return
+    }
+
+    const accent = accentSequence[state.todos.length % accentSequence.length]
+    const todo = createTodo(widgetCreateTitleTrimmed, '', accent)
+
+    setState((currentState) => ({
+      ...currentState,
+      todos: [todo, ...currentState.todos],
+      selectedTodoId: todo.id,
+    }))
+    closeWidgetCreateDialog()
+  }
   const [filter, setFilter] = useState<FilterMode>('all')
   const [loaded, setLoaded] = useState(false)
   const [bootMessage, setBootMessage] = useState<string | null>(null)
@@ -484,6 +514,10 @@ function App() {
           </div>
 
           <div className="widget-board-actions">
+            <button className="widget-board-button widget-board-button--primary" onClick={openWidgetCreateDialog} type="button">
+              <Plus size={16} />
+              新增待办
+            </button>
             <button
               className="widget-board-button"
               onClick={() => {
@@ -495,6 +529,54 @@ function App() {
             </button>
           </div>
         </header>
+
+        {isWidgetCreateDialogOpen ? (
+          <div className="widget-dialog-backdrop" onClick={closeWidgetCreateDialog} role="presentation">
+            <div
+              aria-labelledby="widget-create-dialog-title"
+              aria-modal="true"
+              className="widget-dialog"
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  closeWidgetCreateDialog()
+                }
+              }}
+              role="dialog"
+            >
+              <h2 id="widget-create-dialog-title">新增待办</h2>
+              <p>输入标题后直接进入收集箱。</p>
+              <input
+                autoFocus
+                className="widget-dialog__input"
+                maxLength={80}
+                onChange={(event) => setWidgetCreateTitle(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && canSubmitWidgetCreate) {
+                    event.preventDefault()
+                    handleWidgetCreateSubmit()
+                  }
+                }}
+                placeholder="比如：整理今天最先推进的一件事"
+                value={widgetCreateTitle}
+              />
+              <div className="widget-dialog__actions">
+                <button className="widget-board-button widget-board-button--subtle" onClick={closeWidgetCreateDialog} type="button">
+                  取消
+                </button>
+                <button
+                  className="widget-board-button widget-board-button--primary"
+                  disabled={!canSubmitWidgetCreate}
+                  onClick={handleWidgetCreateSubmit}
+                  type="button"
+                >
+                  创建
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div className="widget-board">
           {widgetColumns.map((column) => (

@@ -108,6 +108,51 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 8px;
+}
+
+.widget-dialog-backdrop,
+.widget-dialog,
+.widget-dialog__input {
+  -webkit-app-region: no-drag;
+}
+
+.widget-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 15, 39, 0.42);
+}
+
+.widget-dialog {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  background: rgba(8, 21, 54, 0.96);
+  box-shadow: 0 18px 48px rgba(2, 12, 32, 0.4);
+}
+
+.widget-dialog__input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(191, 219, 254, 0.28);
+  border-radius: 12px;
+  color: #eff6ff;
+  background: rgba(15, 23, 42, 0.78);
+  font: inherit;
+}
+
+.widget-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .widget-board-button {
