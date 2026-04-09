@@ -212,14 +212,16 @@ function App() {
       return
     }
 
-    const accent = accentSequence[state.todos.length % accentSequence.length]
-    const todo = createTodo(widgetCreateTitleTrimmed, '', accent)
+    setState((currentState) => {
+      const accent = accentSequence[currentState.todos.length % accentSequence.length]
+      const todo = createTodo(widgetCreateTitleTrimmed, '', accent)
 
-    setState((currentState) => ({
-      ...currentState,
-      todos: [todo, ...currentState.todos],
-      selectedTodoId: todo.id,
-    }))
+      return {
+        ...currentState,
+        todos: [todo, ...currentState.todos],
+        selectedTodoId: todo.id,
+      }
+    })
     closeWidgetCreateDialog()
   }
   const [filter, setFilter] = useState<FilterMode>('all')
@@ -312,6 +314,15 @@ function App() {
       window.clearTimeout(timer)
     }
   }, [loaded, state])
+
+  useEffect(() => {
+    if (windowState.widgetMode || !isWidgetCreateDialogOpen) {
+      return
+    }
+
+    setWidgetCreateTitle('')
+    setIsWidgetCreateDialogOpen(false)
+  }, [isWidgetCreateDialogOpen, windowState.widgetMode])
 
   const selectedTodo = useMemo(
     () => state.todos.find((todo) => todo.id === state.selectedTodoId) ?? null,
@@ -533,6 +544,7 @@ function App() {
         {isWidgetCreateDialogOpen ? (
           <div className="widget-dialog-backdrop" onClick={closeWidgetCreateDialog} role="presentation">
             <div
+              aria-describedby="widget-create-dialog-description"
               aria-labelledby="widget-create-dialog-title"
               aria-modal="true"
               className="widget-dialog"
@@ -546,7 +558,7 @@ function App() {
               role="dialog"
             >
               <h2 id="widget-create-dialog-title">新增待办</h2>
-              <p>输入标题后直接进入收集箱。</p>
+              <p id="widget-create-dialog-description">输入标题后直接进入收集箱。</p>
               <input
                 autoFocus
                 className="widget-dialog__input"
