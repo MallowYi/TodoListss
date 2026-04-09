@@ -15,6 +15,15 @@ import {
   type WindowBounds,
   type WindowSnapshot,
 } from '../shared/contracts'
+import {
+  getDockCursorAction,
+  interpolateWidgetBounds,
+  widgetAnimationDurationsMs,
+  widgetAnimationFrameIntervalMs,
+  widgetBlurHideDelayMs,
+  widgetCursorMonitorIntervalMs,
+  type DockSessionLike,
+} from './widgetMotion'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -33,13 +42,7 @@ const widgetMaxWidth = 1320
 const widgetMaxHeight = 900
 
 type Rectangle = Electron.Rectangle
-
-interface DockSession {
-  edge: Exclude<DockEdge, null>
-  visibleBounds: Rectangle
-  hiddenBounds: Rectangle
-  revealZone: Rectangle
-}
+type DockSession = DockSessionLike
 
 let mainWindow: BrowserWindow | null = null
 let persistedState: PersistedState = createDefaultState()
@@ -319,25 +322,16 @@ function shouldIgnoreManagedWindowEvent(): boolean {
   return true
 }
 
-function pointInRect(point: Electron.Point, rect: Rectangle, padding = 0): boolean {
-  return (
-    point.x >= rect.x - padding &&
-    point.x <= rect.x + rect.width + padding &&
-    point.y >= rect.y - padding &&
-    point.y <= rect.y + rect.height + padding
-  )
-}
-
 function stopAnimation(): void {
   if (animationTimer) {
-    clearInterval(animationTimer)
+    clearTimeout(animationTimer)
     animationTimer = null
   }
 
   isAnimatingWindow = false
 }
 
-function animateWindow(targetBounds: Rectangle): void {
+function animateWindow(targetBounds: Rectangle, phase: 'reveal' | 'hide'): void {
   if (!mainWindow) {
     return
   }
@@ -345,35 +339,38 @@ function animateWindow(targetBounds: Rectangle): void {
   stopAnimation()
   managedBoundsTarget = null
   managedBoundsIgnoreEventsRemaining = 0
-  isAnimatingWindow = true
 
   const startBounds = mainWindow.getBounds()
-  const startedAt = Date.now()
-  const durationMs = 140
+ 
+  if (sameBounds(startBounds, targetBounds)) {
+    setManagedWindowBounds(targetBounds)
+    return
+  }
 
-  animationTimer = setInterval(() => {
+  isAnimatingWindow = true
+  const startedAt = performance.now()
+  const durationMs = widgetAnimationDurationsMs[phase]
+
+  const tick = (): void => {
     if (!mainWindow) {
       stopAnimation()
       return
     }
 
-    const progress = Math.min((Date.now() - startedAt) / durationMs, 1)
-    const easedProgress = 1 - Math.pow(1 - progress, 3)
-
-    const nextBounds: Rectangle = {
-      x: Math.round(startBounds.x + (targetBounds.x - startBounds.x) * easedProgress),
-      y: Math.round(startBounds.y + (targetBounds.y - startBounds.y) * easedProgress),
-      width: Math.round(startBounds.width + (targetBounds.width - startBounds.width) * easedProgress),
-      height: Math.round(startBounds.height + (targetBounds.height - startBounds.height) * easedProgress),
-    }
-
+    const progress = Math.min((performance.now() - startedAt) / durationMs, 1)
+    const nextBounds = interpolateWidgetBounds(startBounds, targetBounds, progress, phase)
     mainWindow.setBounds(nextBounds, false)
 
     if (progress >= 1) {
       stopAnimation()
       setManagedWindowBounds(targetBounds)
+      return
     }
-  }, 16)
+
+    animationTimer = setTimeout(tick, widgetAnimationFrameIntervalMs)
+  }
+
+  tick()
 }
 
 function buildDockSession(edge: Exclude<DockEdge, null>, bounds: Rectangle, workArea: Rectangle): DockSession {
@@ -572,7 +569,7 @@ function revealDockedWindow(): void {
 
   autoHidden = false
   hideDeadline = null
-  animateWindow(dockSession.visibleBounds)
+  animateWindow(dockSession.visibleBounds, 'reveal')
   emitWindowState()
 }
 
@@ -583,7 +580,7 @@ function hideDockedWindow(): void {
 
   autoHidden = true
   hideDeadline = null
-  animateWindow(dockSession.hiddenBounds)
+  animateWindow(dockSession.hiddenBounds, 'hide')
   emitWindowState()
 }
 
@@ -592,31 +589,28 @@ function handleCursorMonitor(): void {
     return
   }
 
-  const cursor = screen.getCursorScreenPoint()
+  const action = getDockCursorAction({
+    autoHidden,
+    cursor: screen.getCursorScreenPoint(),
+    dockSession,
+    hideDeadline,
+    isAnimatingWindow,
+    isWindowFocused: mainWindow.isFocused(),
+    nowMs: Date.now(),
+    windowBounds: mainWindow.getBounds(),
+  })
 
-  if (autoHidden) {
-    if (pointInRect(cursor, dockSession.revealZone, 0)) {
+  hideDeadline = action.hideDeadline
+
+  switch (action.type) {
+    case 'reveal':
       revealDockedWindow()
-    }
-
-    return
-  }
-
-  const bounds = mainWindow.getBounds()
-  const shouldStayVisible = pointInRect(cursor, bounds, 12)
-
-  if (shouldStayVisible) {
-    hideDeadline = null
-    return
-  }
-
-  if (hideDeadline === null) {
-    hideDeadline = Date.now() + (mainWindow.isFocused() ? 320 : 140)
-    return
-  }
-
-  if (Date.now() >= hideDeadline) {
-    hideDockedWindow()
+      return
+    case 'hide':
+      hideDockedWindow()
+      return
+    default:
+      return
   }
 }
 
@@ -625,7 +619,7 @@ function startCursorMonitor(): void {
     return
   }
 
-  cursorMonitorTimer = setInterval(handleCursorMonitor, 120)
+  cursorMonitorTimer = setInterval(handleCursorMonitor, widgetCursorMonitorIntervalMs)
 }
 
 function stopCursorMonitor(): void {
@@ -979,7 +973,7 @@ function createMainWindow(): void {
 
   mainWindow.on('blur', () => {
     if (persistedState.widgetMode && dockSession && !autoHidden) {
-      hideDeadline = Date.now() + 180
+      hideDeadline = Date.now() + widgetBlurHideDelayMs
     }
   })
 
