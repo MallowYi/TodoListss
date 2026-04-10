@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Check,
   CheckCircle2,
@@ -34,6 +34,7 @@ const accentClassMap: Record<TodoAccent, string> = {
 }
 
 const accentSequence: TodoAccent[] = [...todoAccents]
+const widgetRevealTransitionMs = 264
 
 const widgetColumnLabelMap: Record<TodoColumnId, string> = {
   backlog: '收集箱',
@@ -230,6 +231,8 @@ function App() {
   const [draggedTodoId, setDraggedTodoId] = useState<string | null>(null)
   const [dragOverTodoId, setDragOverTodoId] = useState<string | null>(null)
   const [dragOverColumnId, setDragOverColumnId] = useState<TodoColumnId | null>(null)
+  const [isWidgetRevealActive, setIsWidgetRevealActive] = useState(false)
+  const previousWidgetAutoHiddenRef = useRef(windowState.autoHidden)
   const runningInElectronShell = isElectronUserAgent()
   const canUseNativeWidget = bridgeMode === 'native'
   const bridgeStatusLabel =
@@ -323,6 +326,34 @@ function App() {
     setWidgetCreateTitle('')
     setIsWidgetCreateDialogOpen(false)
   }, [isWidgetCreateDialogOpen, windowState.widgetMode])
+
+  useEffect(() => {
+    if (!windowState.autoHidden || !isWidgetCreateDialogOpen) {
+      return
+    }
+
+    setWidgetCreateTitle('')
+    setIsWidgetCreateDialogOpen(false)
+  }, [isWidgetCreateDialogOpen, windowState.autoHidden])
+
+  useEffect(() => {
+    const wasAutoHidden = previousWidgetAutoHiddenRef.current
+    previousWidgetAutoHiddenRef.current = windowState.autoHidden
+
+    if (!windowState.widgetMode || windowState.dockEdge === null || windowState.autoHidden || !wasAutoHidden) {
+      setIsWidgetRevealActive(false)
+      return
+    }
+
+    setIsWidgetRevealActive(true)
+    const timer = window.setTimeout(() => {
+      setIsWidgetRevealActive(false)
+    }, widgetRevealTransitionMs)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [windowState.autoHidden, windowState.dockEdge, windowState.widgetMode])
 
   const selectedTodo = useMemo(
     () => state.todos.find((todo) => todo.id === state.selectedTodoId) ?? null,
@@ -479,229 +510,246 @@ function App() {
   }
 
   if (windowState.widgetMode && canUseNativeWidget) {
+    const isWidgetHidden = windowState.autoHidden && windowState.dockEdge !== null
+    const widgetShellClassName = [
+      'widget-board-shell',
+      windowState.dockEdge ? `widget-board-shell--dock-${windowState.dockEdge}` : '',
+      isWidgetHidden ? 'widget-board-shell--hidden' : '',
+      isWidgetRevealActive ? 'widget-board-shell--revealing' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+
     return (
       <div
-        className="widget-board-shell"
+        className={widgetShellClassName}
         onContextMenu={(event) => {
           event.preventDefault()
           void desktopApi.showWidgetMenu()
         }}
       >
-        <header
-          className="widget-board-header"
-          onDoubleClick={() => {
-            void handleWidgetModeToggle()
-          }}
-          title={windowState.autoHidden ? '已贴边隐藏，移到边缘呼出' : '拖动顶栏可贴边隐藏；双击返回桌面；右键打开菜单'}
-        >
-          <div className="widget-board-brand">
-            <div className="widget-board-brand__badge">
-              <LayoutGrid size={18} />
-            </div>
-            <div>
-              <div className="widget-board-brand__title">挂件看板</div>
-              <div className="widget-board-brand__subtitle">更接近 Trello 的横向多列布局</div>
-            </div>
+        {isWidgetHidden ? (
+          <div className={`widget-edge-handle widget-edge-handle--${windowState.dockEdge}`} title="移到这里呼出挂件">
+            <div className="widget-edge-handle__glow" />
+            <div className="widget-edge-handle__grip" aria-hidden="true" />
           </div>
-
-          <div className="widget-board-pills">
-            <span className="widget-board-pill">
-              <ListTodo size={14} />
-              {state.todos.length} 张卡片
-            </span>
-            <span className="widget-board-pill widget-board-pill--success">
-              <CheckCircle2 size={14} />
-              已完成 {completedCount}
-            </span>
-            {windowState.dockEdge && (
-              <span className="widget-board-pill widget-board-pill--accent">
-                <Pin size={14} />
-                已贴边 {windowState.dockEdge}
-              </span>
-            )}
-            <span className="widget-board-pill widget-board-pill--soft">
-              {windowState.autoHidden ? '移到同一边缘即可呼出' : '拖动顶栏到屏幕边缘可自动隐藏'}
-            </span>
-          </div>
-
-          <div className="widget-board-actions">
-            <button className="widget-board-button widget-board-button--primary" onClick={openWidgetCreateDialog} type="button">
-              <Plus size={16} />
-              新增待办
-            </button>
-            <button
-              className="widget-board-button"
-              onClick={() => {
+        ) : (
+          <>
+            <header
+              className="widget-board-header"
+              onDoubleClick={() => {
                 void handleWidgetModeToggle()
               }}
-              type="button"
+              title="拖动顶栏可贴边隐藏；双击返回桌面；右键打开菜单"
             >
-              退出挂件
-            </button>
-          </div>
-        </header>
+              <div className="widget-board-brand">
+                <div className="widget-board-brand__badge">
+                  <LayoutGrid size={18} />
+                </div>
+                <div>
+                  <div className="widget-board-brand__title">挂件看板</div>
+                  <div className="widget-board-brand__subtitle">更接近 Trello 的横向多列布局</div>
+                </div>
+              </div>
 
-        {isWidgetCreateDialogOpen ? (
-          <div className="widget-dialog-backdrop" onClick={closeWidgetCreateDialog} role="presentation">
-            <div
-              aria-describedby="widget-create-dialog-description"
-              aria-labelledby="widget-create-dialog-title"
-              aria-modal="true"
-              className="widget-dialog"
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') {
-                  event.preventDefault()
-                  closeWidgetCreateDialog()
-                }
-              }}
-              role="dialog"
-            >
-              <h2 id="widget-create-dialog-title">新增待办</h2>
-              <p id="widget-create-dialog-description">输入标题后直接进入收集箱。</p>
-              <input
-                autoFocus
-                className="widget-dialog__input"
-                maxLength={80}
-                onChange={(event) => setWidgetCreateTitle(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && canSubmitWidgetCreate) {
-                    event.preventDefault()
-                    handleWidgetCreateSubmit()
-                  }
-                }}
-                placeholder="比如：整理今天最先推进的一件事"
-                value={widgetCreateTitle}
-              />
-              <div className="widget-dialog__actions">
-                <button className="widget-board-button widget-board-button--subtle" onClick={closeWidgetCreateDialog} type="button">
-                  取消
+              <div className="widget-board-pills">
+                <span className="widget-board-pill">
+                  <ListTodo size={14} />
+                  {state.todos.length} 张卡片
+                </span>
+                <span className="widget-board-pill widget-board-pill--success">
+                  <CheckCircle2 size={14} />
+                  已完成 {completedCount}
+                </span>
+                {windowState.dockEdge && (
+                  <span className="widget-board-pill widget-board-pill--accent">
+                    <Pin size={14} />
+                    已贴边 {windowState.dockEdge}
+                  </span>
+                )}
+                <span className="widget-board-pill widget-board-pill--soft">拖动顶栏到屏幕边缘可自动隐藏</span>
+              </div>
+
+              <div className="widget-board-actions">
+                <button className="widget-board-button widget-board-button--primary" onClick={openWidgetCreateDialog} type="button">
+                  <Plus size={16} />
+                  新增待办
                 </button>
                 <button
-                  className="widget-board-button widget-board-button--primary"
-                  disabled={!canSubmitWidgetCreate}
-                  onClick={handleWidgetCreateSubmit}
+                  className="widget-board-button"
+                  onClick={() => {
+                    void handleWidgetModeToggle()
+                  }}
                   type="button"
                 >
-                  创建
+                  退出挂件
                 </button>
               </div>
-            </div>
-          </div>
-        ) : null}
+            </header>
 
-        <div className="widget-board">
-          {widgetColumns.map((column) => (
-            <section
-              key={column.id}
-              className={`widget-column ${dragOverColumnId === column.id ? 'widget-column--drag-over' : ''}`}
-              onDragOver={(event) => {
-                event.preventDefault()
-
-                if (dragOverColumnId !== column.id) {
-                  setDragOverColumnId(column.id)
-                }
-
-                if (dragOverTodoId !== null) {
-                  setDragOverTodoId(null)
-                }
-              }}
-              onDrop={(event) => {
-                event.preventDefault()
-                handleWidgetTodoDrop(column.id)
-              }}
-            >
-              <header className="widget-column__header">
-                <div>
-                  <span className="widget-column__eyebrow">{column.subtitle}</span>
-                  <h2>{column.title}</h2>
-                </div>
-                <span className="widget-column__count">{column.todos.length}</span>
-              </header>
-
-              <div className="widget-column__list">
-                {column.todos.length === 0 ? (
-                  <div className="widget-column__empty">
-                    <span>这里还没有卡片</span>
-                    <p>把任务拖到这一列，整理出和截图更接近的节奏。</p>
-                  </div>
-                ) : (
-                  column.todos.map((todo) => (
-                    <article
-                      key={todo.id}
-                      className={`widget-board-card widget-board-card--${todo.accent} ${
-                        state.selectedTodoId === todo.id ? 'widget-board-card--selected' : ''
-                      } ${todo.isCompleted ? 'widget-board-card--completed' : ''} ${
-                        dragOverTodoId === todo.id ? 'widget-board-card--drag-over' : ''
-                      }`}
-                      draggable
-                      onClick={() => selectTodo(todo.id)}
-                      onDragEnd={clearWidgetDragState}
-                      onDragOver={(event) => {
+            {isWidgetCreateDialogOpen ? (
+              <div className="widget-dialog-backdrop" onClick={closeWidgetCreateDialog} role="presentation">
+                <div
+                  aria-describedby="widget-create-dialog-description"
+                  aria-labelledby="widget-create-dialog-title"
+                  aria-modal="true"
+                  className="widget-dialog"
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') {
+                      event.preventDefault()
+                      closeWidgetCreateDialog()
+                    }
+                  }}
+                  role="dialog"
+                >
+                  <h2 id="widget-create-dialog-title">新增待办</h2>
+                  <p id="widget-create-dialog-description">输入标题后直接进入收集箱。</p>
+                  <input
+                    autoFocus
+                    className="widget-dialog__input"
+                    maxLength={80}
+                    onChange={(event) => setWidgetCreateTitle(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && canSubmitWidgetCreate) {
                         event.preventDefault()
-                        event.stopPropagation()
-
-                        if (dragOverColumnId !== column.id) {
-                          setDragOverColumnId(column.id)
-                        }
-
-                        if (dragOverTodoId !== todo.id) {
-                          setDragOverTodoId(todo.id)
-                        }
-                      }}
-                      onDragStart={() => {
-                        setDraggedTodoId(todo.id)
-                        setDragOverColumnId(column.id)
-                        setDragOverTodoId(todo.id)
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        handleWidgetTodoDrop(column.id, todo.id)
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          selectTodo(todo.id)
-                        }
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      title={todo.notes ? `${todo.title}\n\n${todo.notes}` : todo.title}
+                        handleWidgetCreateSubmit()
+                      }
+                    }}
+                    placeholder="比如：整理今天最先推进的一件事"
+                    value={widgetCreateTitle}
+                  />
+                  <div className="widget-dialog__actions">
+                    <button className="widget-board-button widget-board-button--subtle" onClick={closeWidgetCreateDialog} type="button">
+                      取消
+                    </button>
+                    <button
+                      className="widget-board-button widget-board-button--primary"
+                      disabled={!canSubmitWidgetCreate}
+                      onClick={handleWidgetCreateSubmit}
+                      type="button"
                     >
-                      <div className={`widget-board-card__accent widget-board-card__accent--${todo.accent}`} />
-
-                      <div className="widget-board-card__header">
-                        <span className="widget-board-card__badge">{widgetColumnLabelMap[todo.columnId]}</span>
-                        <button
-                          aria-label={todo.isCompleted ? `将 ${todo.title} 设为未完成` : `完成 ${todo.title}`}
-                          className={`widget-check-button ${todo.isCompleted ? 'widget-check-button--checked' : ''}`}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            handleToggleTodo(todo.id)
-                          }}
-                          type="button"
-                        >
-                          {todo.isCompleted ? <Check size={14} /> : null}
-                        </button>
-                      </div>
-
-                      <div className="widget-board-card__content">
-                        <h3>{todo.title}</h3>
-                        {todo.notes ? <p>{todo.notes}</p> : null}
-                      </div>
-
-                      <div className="widget-board-card__meta">
-                        <span>{todo.notes ? '附带备注' : '仅标题卡片'}</span>
-                        <span>{formatTimestamp(todo.updatedAt)}</span>
-                      </div>
-                    </article>
-                  ))
-                )}
+                      创建
+                    </button>
+                  </div>
+                </div>
               </div>
-            </section>
-          ))}
-        </div>
+            ) : null}
+
+            <div className="widget-board">
+              {widgetColumns.map((column) => (
+                <section
+                  key={column.id}
+                  className={`widget-column ${dragOverColumnId === column.id ? 'widget-column--drag-over' : ''}`}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+
+                    if (dragOverColumnId !== column.id) {
+                      setDragOverColumnId(column.id)
+                    }
+
+                    if (dragOverTodoId !== null) {
+                      setDragOverTodoId(null)
+                    }
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    handleWidgetTodoDrop(column.id)
+                  }}
+                >
+                  <header className="widget-column__header">
+                    <div>
+                      <span className="widget-column__eyebrow">{column.subtitle}</span>
+                      <h2>{column.title}</h2>
+                    </div>
+                    <span className="widget-column__count">{column.todos.length}</span>
+                  </header>
+
+                  <div className="widget-column__list">
+                    {column.todos.length === 0 ? (
+                      <div className="widget-column__empty">
+                        <span>这里还没有卡片</span>
+                        <p>把任务拖到这一列，整理出和截图更接近的节奏。</p>
+                      </div>
+                    ) : (
+                      column.todos.map((todo) => (
+                        <article
+                          key={todo.id}
+                          className={`widget-board-card widget-board-card--${todo.accent} ${
+                            state.selectedTodoId === todo.id ? 'widget-board-card--selected' : ''
+                          } ${todo.isCompleted ? 'widget-board-card--completed' : ''} ${
+                            dragOverTodoId === todo.id ? 'widget-board-card--drag-over' : ''
+                          }`}
+                          draggable
+                          onClick={() => selectTodo(todo.id)}
+                          onDragEnd={clearWidgetDragState}
+                          onDragOver={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+
+                            if (dragOverColumnId !== column.id) {
+                              setDragOverColumnId(column.id)
+                            }
+
+                            if (dragOverTodoId !== todo.id) {
+                              setDragOverTodoId(todo.id)
+                            }
+                          }}
+                          onDragStart={() => {
+                            setDraggedTodoId(todo.id)
+                            setDragOverColumnId(column.id)
+                            setDragOverTodoId(todo.id)
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            handleWidgetTodoDrop(column.id, todo.id)
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              selectTodo(todo.id)
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          title={todo.notes ? `${todo.title}\n\n${todo.notes}` : todo.title}
+                        >
+                          <div className={`widget-board-card__accent widget-board-card__accent--${todo.accent}`} />
+
+                          <div className="widget-board-card__header">
+                            <span className="widget-board-card__badge">{widgetColumnLabelMap[todo.columnId]}</span>
+                            <button
+                              aria-label={todo.isCompleted ? `将 ${todo.title} 设为未完成` : `完成 ${todo.title}`}
+                              className={`widget-check-button ${todo.isCompleted ? 'widget-check-button--checked' : ''}`}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                handleToggleTodo(todo.id)
+                              }}
+                              type="button"
+                            >
+                              {todo.isCompleted ? <Check size={14} /> : null}
+                            </button>
+                          </div>
+
+                          <div className="widget-board-card__content">
+                            <h3>{todo.title}</h3>
+                            {todo.notes ? <p>{todo.notes}</p> : null}
+                          </div>
+
+                          <div className="widget-board-card__meta">
+                            <span>{todo.notes ? '附带备注' : '仅标题卡片'}</span>
+                            <span>{formatTimestamp(todo.updatedAt)}</span>
+                          </div>
+                        </article>
+                      ))
+                    )}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     )
   }

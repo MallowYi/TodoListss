@@ -17,9 +17,7 @@ import {
 } from '../shared/contracts'
 import {
   getDockCursorAction,
-  interpolateWidgetBounds,
-  widgetAnimationDurationsMs,
-  widgetAnimationFrameIntervalMs,
+  getWidgetAutoHiddenBounds,
   widgetBlurHideDelayMs,
   widgetCursorMonitorIntervalMs,
   type DockSessionLike,
@@ -35,7 +33,6 @@ const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 const dockThreshold = 56
-const peekSize = 6
 const widgetMinWidth = 640
 const widgetMinHeight = 400
 const widgetMaxWidth = 1320
@@ -331,136 +328,76 @@ function stopAnimation(): void {
   isAnimatingWindow = false
 }
 
-function animateWindow(targetBounds: Rectangle, phase: 'reveal' | 'hide'): void {
-  if (!mainWindow) {
-    return
-  }
-
-  stopAnimation()
-  managedBoundsTarget = null
-  managedBoundsIgnoreEventsRemaining = 0
-
-  const startBounds = mainWindow.getBounds()
- 
-  if (sameBounds(startBounds, targetBounds)) {
-    setManagedWindowBounds(targetBounds)
-    return
-  }
-
-  isAnimatingWindow = true
-  const startedAt = performance.now()
-  const durationMs = widgetAnimationDurationsMs[phase]
-
-  const tick = (): void => {
-    if (!mainWindow) {
-      stopAnimation()
-      return
-    }
-
-    const progress = Math.min((performance.now() - startedAt) / durationMs, 1)
-    const nextBounds = interpolateWidgetBounds(startBounds, targetBounds, progress, phase)
-    mainWindow.setBounds(nextBounds, false)
-
-    if (progress >= 1) {
-      stopAnimation()
-      setManagedWindowBounds(targetBounds)
-      return
-    }
-
-    animationTimer = setTimeout(tick, widgetAnimationFrameIntervalMs)
-  }
-
-  tick()
-}
-
 function buildDockSession(edge: Exclude<DockEdge, null>, bounds: Rectangle, workArea: Rectangle): DockSession {
+  const visibleBounds = (() => {
+    switch (edge) {
+      case 'left':
+        return {
+          x: workArea.x,
+          y: clamp(bounds.y, workArea.y, workArea.y + workArea.height - bounds.height),
+          width: bounds.width,
+          height: bounds.height,
+        }
+      case 'right':
+        return {
+          x: workArea.x + workArea.width - bounds.width,
+          y: clamp(bounds.y, workArea.y, workArea.y + workArea.height - bounds.height),
+          width: bounds.width,
+          height: bounds.height,
+        }
+      case 'bottom':
+        return {
+          x: clamp(bounds.x, workArea.x, workArea.x + workArea.width - bounds.width),
+          y: workArea.y + workArea.height - bounds.height,
+          width: bounds.width,
+          height: bounds.height,
+        }
+      default:
+        return {
+          x: clamp(bounds.x, workArea.x, workArea.x + workArea.width - bounds.width),
+          y: workArea.y,
+          width: bounds.width,
+          height: bounds.height,
+        }
+    }
+  })()
+  const hiddenBounds = getWidgetAutoHiddenBounds(visibleBounds, edge)
+
   switch (edge) {
     case 'left':
       return {
         edge,
-        visibleBounds: {
-          x: workArea.x,
-          y: clamp(bounds.y, workArea.y, workArea.y + workArea.height - bounds.height),
-          width: bounds.width,
-          height: bounds.height,
-        },
-        hiddenBounds: {
-          x: workArea.x - bounds.width + peekSize,
-          y: clamp(bounds.y, workArea.y, workArea.y + workArea.height - bounds.height),
-          width: bounds.width,
-          height: bounds.height,
-        },
+        visibleBounds,
+        hiddenBounds,
         revealZone: {
-          x: workArea.x,
-          y: clamp(bounds.y, workArea.y, workArea.y + workArea.height - bounds.height),
-          width: 48,
-          height: bounds.height,
+          ...hiddenBounds,
         },
       }
     case 'right':
       return {
         edge,
-        visibleBounds: {
-          x: workArea.x + workArea.width - bounds.width,
-          y: clamp(bounds.y, workArea.y, workArea.y + workArea.height - bounds.height),
-          width: bounds.width,
-          height: bounds.height,
-        },
-        hiddenBounds: {
-          x: workArea.x + workArea.width - peekSize,
-          y: clamp(bounds.y, workArea.y, workArea.y + workArea.height - bounds.height),
-          width: bounds.width,
-          height: bounds.height,
-        },
+        visibleBounds,
+        hiddenBounds,
         revealZone: {
-          x: workArea.x + workArea.width - 48,
-          y: clamp(bounds.y, workArea.y, workArea.y + workArea.height - bounds.height),
-          width: 48,
-          height: bounds.height,
+          ...hiddenBounds,
         },
       }
     case 'bottom':
       return {
         edge,
-        visibleBounds: {
-          x: clamp(bounds.x, workArea.x, workArea.x + workArea.width - bounds.width),
-          y: workArea.y + workArea.height - bounds.height,
-          width: bounds.width,
-          height: bounds.height,
-        },
-        hiddenBounds: {
-          x: clamp(bounds.x, workArea.x, workArea.x + workArea.width - bounds.width),
-          y: workArea.y + workArea.height - peekSize,
-          width: bounds.width,
-          height: bounds.height,
-        },
+        visibleBounds,
+        hiddenBounds,
         revealZone: {
-          x: clamp(bounds.x, workArea.x, workArea.x + workArea.width - bounds.width),
-          y: workArea.y + workArea.height - 40,
-          width: bounds.width,
-          height: 40,
+          ...hiddenBounds,
         },
       }
     default:
       return {
         edge,
-        visibleBounds: {
-          x: clamp(bounds.x, workArea.x, workArea.x + workArea.width - bounds.width),
-          y: workArea.y,
-          width: bounds.width,
-          height: bounds.height,
-        },
-        hiddenBounds: {
-          x: clamp(bounds.x, workArea.x, workArea.x + workArea.width - bounds.width),
-          y: workArea.y - bounds.height + peekSize,
-          width: bounds.width,
-          height: bounds.height,
-        },
+        visibleBounds,
+        hiddenBounds,
         revealZone: {
-          x: clamp(bounds.x, workArea.x, workArea.x + workArea.width - bounds.width),
-          y: workArea.y,
-          width: bounds.width,
-          height: 48,
+          ...hiddenBounds,
         },
       }
   }
@@ -567,9 +504,10 @@ function revealDockedWindow(): void {
     return
   }
 
+  stopAnimation()
   autoHidden = false
   hideDeadline = null
-  animateWindow(dockSession.visibleBounds, 'reveal')
+  setManagedWindowBounds(dockSession.visibleBounds)
   emitWindowState()
 }
 
@@ -578,9 +516,10 @@ function hideDockedWindow(): void {
     return
   }
 
+  stopAnimation()
   autoHidden = true
   hideDeadline = null
-  animateWindow(dockSession.hiddenBounds, 'hide')
+  setManagedWindowBounds(dockSession.hiddenBounds)
   emitWindowState()
 }
 

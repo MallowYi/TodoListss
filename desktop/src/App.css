@@ -7,6 +7,8 @@
 }
 
 .widget-board-shell {
+  --widget-reveal-x: 0px;
+  --widget-reveal-y: 0px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -16,6 +18,93 @@
   overflow: hidden;
   color: #eff6ff;
   background: linear-gradient(135deg, #0f9dd4 0%, #1676ea 58%, #0a5add 100%);
+}
+
+.widget-board-shell--dock-left {
+  --widget-reveal-x: -28px;
+}
+
+.widget-board-shell--dock-right {
+  --widget-reveal-x: 28px;
+}
+
+.widget-board-shell--dock-top {
+  --widget-reveal-y: -24px;
+}
+
+.widget-board-shell--dock-bottom {
+  --widget-reveal-y: 24px;
+}
+
+.widget-board-shell--hidden {
+  gap: 0;
+  padding: 0;
+  background: linear-gradient(180deg, rgba(11, 43, 117, 0.96) 0%, rgba(13, 88, 188, 0.94) 100%);
+}
+
+.widget-board-shell--revealing .widget-board-header,
+.widget-board-shell--revealing .widget-board {
+  will-change: transform, opacity;
+}
+
+.widget-board-shell--revealing .widget-board-header {
+  animation: widget-surface-reveal 210ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.widget-board-shell--revealing .widget-board {
+  animation: widget-surface-reveal 240ms cubic-bezier(0.2, 1, 0.32, 1) both;
+  animation-delay: 24ms;
+}
+
+.widget-edge-handle {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.widget-edge-handle__glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(191, 219, 254, 0.8) 0%, rgba(96, 165, 250, 0.18) 55%, transparent 100%);
+  opacity: 0.9;
+}
+
+.widget-edge-handle__grip {
+  position: relative;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(191, 219, 254, 0.88) 100%);
+  box-shadow:
+    0 0 12px rgba(191, 219, 254, 0.44),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.widget-edge-handle--left .widget-edge-handle__grip,
+.widget-edge-handle--right .widget-edge-handle__grip {
+  width: 4px;
+  height: 84px;
+}
+
+.widget-edge-handle--top .widget-edge-handle__grip,
+.widget-edge-handle--bottom .widget-edge-handle__grip {
+  width: 84px;
+  height: 4px;
+}
+
+@keyframes widget-surface-reveal {
+  from {
+    opacity: 0.72;
+    transform: translate(var(--widget-reveal-x), var(--widget-reveal-y)) scale(0.988);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
 }
 
 .widget-board-header {

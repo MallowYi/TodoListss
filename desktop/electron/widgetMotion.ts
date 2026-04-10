@@ -40,6 +40,8 @@ export type DockCursorAction =
     }
 
 export type WidgetAnimationPhase = 'reveal' | 'hide'
+export type WidgetAnimationUpdateMode = 'position' | 'bounds'
+export const widgetHiddenStripThickness = 8
 
 export const widgetAnimationDurationsMs = {
   reveal: 176,
@@ -53,11 +55,10 @@ export const widgetBlurHideDelayMs = 220
 const visibleEdgePadding = 12
 const visibleInteriorPadding = 84
 const visibleCrossAxisPadding = 28
-const revealInteriorPadding = 24
 const revealCrossAxisPadding = 18
 
 export function getWidgetHideDelayMs(isWindowFocused: boolean): number {
-  return isWindowFocused ? 360 : 220
+  return isWindowFocused ? 180 : 220
 }
 
 export function interpolateWidgetBounds(
@@ -73,6 +74,46 @@ export function interpolateWidgetBounds(
     y: Math.round(startBounds.y + (targetBounds.y - startBounds.y) * easedProgress),
     width: Math.round(startBounds.width + (targetBounds.width - startBounds.width) * easedProgress),
     height: Math.round(startBounds.height + (targetBounds.height - startBounds.height) * easedProgress),
+  }
+}
+
+export function getWidgetAnimationUpdateMode(
+  startBounds: WindowBounds,
+  targetBounds: WindowBounds,
+): WidgetAnimationUpdateMode {
+  return startBounds.width === targetBounds.width && startBounds.height === targetBounds.height ? 'position' : 'bounds'
+}
+
+export function getWidgetAutoHiddenBounds(bounds: WindowBounds, edge: WidgetDockEdge): WindowBounds {
+  switch (edge) {
+    case 'left':
+      return {
+        x: bounds.x,
+        y: bounds.y,
+        width: widgetHiddenStripThickness,
+        height: bounds.height,
+      }
+    case 'right':
+      return {
+        x: bounds.x + bounds.width - widgetHiddenStripThickness,
+        y: bounds.y,
+        width: widgetHiddenStripThickness,
+        height: bounds.height,
+      }
+    case 'top':
+      return {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: widgetHiddenStripThickness,
+      }
+    case 'bottom':
+      return {
+        x: bounds.x,
+        y: bounds.y + bounds.height - widgetHiddenStripThickness,
+        width: bounds.width,
+        height: widgetHiddenStripThickness,
+      }
   }
 }
 
@@ -200,34 +241,79 @@ function getVisibleHoverBounds(bounds: WindowBounds, edge: WidgetDockEdge): Wind
 }
 
 function getExpandedRevealZone(dockSession: DockSessionLike): WindowBounds {
+  const visiblePeekSize = getVisiblePeekSize(dockSession)
+
   switch (dockSession.edge) {
     case 'left':
-      return expandBounds(dockSession.revealZone, {
-        left: 0,
-        right: revealInteriorPadding,
-        top: revealCrossAxisPadding,
-        bottom: revealCrossAxisPadding,
-      })
+      return expandBounds(
+        {
+          x: dockSession.visibleBounds.x,
+          y: dockSession.visibleBounds.y,
+          width: visiblePeekSize,
+          height: dockSession.visibleBounds.height,
+        },
+        {
+          left: 0,
+          right: 0,
+          top: revealCrossAxisPadding,
+          bottom: revealCrossAxisPadding,
+        },
+      )
     case 'right':
-      return expandBounds(dockSession.revealZone, {
-        left: revealInteriorPadding,
-        right: 0,
-        top: revealCrossAxisPadding,
-        bottom: revealCrossAxisPadding,
-      })
+      return expandBounds(
+        {
+          x: dockSession.visibleBounds.x + dockSession.visibleBounds.width - visiblePeekSize,
+          y: dockSession.visibleBounds.y,
+          width: visiblePeekSize,
+          height: dockSession.visibleBounds.height,
+        },
+        {
+          left: 0,
+          right: 0,
+          top: revealCrossAxisPadding,
+          bottom: revealCrossAxisPadding,
+        },
+      )
     case 'top':
-      return expandBounds(dockSession.revealZone, {
-        left: revealCrossAxisPadding,
-        right: revealCrossAxisPadding,
-        top: 0,
-        bottom: revealInteriorPadding,
-      })
+      return expandBounds(
+        {
+          x: dockSession.visibleBounds.x,
+          y: dockSession.visibleBounds.y,
+          width: dockSession.visibleBounds.width,
+          height: visiblePeekSize,
+        },
+        {
+          left: revealCrossAxisPadding,
+          right: revealCrossAxisPadding,
+          top: 0,
+          bottom: 0,
+        },
+      )
     case 'bottom':
-      return expandBounds(dockSession.revealZone, {
-        left: revealCrossAxisPadding,
-        right: revealCrossAxisPadding,
-        top: revealInteriorPadding,
-        bottom: 0,
-      })
+      return expandBounds(
+        {
+          x: dockSession.visibleBounds.x,
+          y: dockSession.visibleBounds.y + dockSession.visibleBounds.height - visiblePeekSize,
+          width: dockSession.visibleBounds.width,
+          height: visiblePeekSize,
+        },
+        {
+          left: revealCrossAxisPadding,
+          right: revealCrossAxisPadding,
+          top: 0,
+          bottom: 0,
+        },
+      )
+  }
+}
+
+function getVisiblePeekSize(dockSession: DockSessionLike): number {
+  switch (dockSession.edge) {
+    case 'left':
+    case 'right':
+      return Math.max(1, dockSession.hiddenBounds.width)
+    case 'top':
+    case 'bottom':
+      return Math.max(1, dockSession.hiddenBounds.height)
   }
 }
