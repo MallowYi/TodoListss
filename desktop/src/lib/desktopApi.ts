@@ -1,5 +1,5 @@
-import type { PersistedState, TodoItem, WindowSnapshot } from '../../shared/contracts'
-import { createDefaultState, normalizeTodoAccent, normalizeTodoColumnId } from '../../shared/contracts'
+import type { PersistedState, WindowSnapshot } from '../../shared/contracts'
+import { createDefaultState, normalizePersistedState } from '../../shared/contracts'
 
 type DesktopApi = Window['desktopApi']
 
@@ -17,46 +17,6 @@ const fallbackWindowState: WindowSnapshot = {
   alwaysOnTop: false,
 }
 
-function cloneDefaultState(): PersistedState {
-  return createDefaultState()
-}
-
-function normalizeTodo(raw: unknown): TodoItem {
-  const now = new Date().toISOString()
-  const candidate = raw && typeof raw === 'object' ? (raw as Partial<TodoItem>) : {}
-  const isCompleted = Boolean(candidate.isCompleted)
-
-  return {
-    id: typeof candidate.id === 'string' ? candidate.id : crypto.randomUUID(),
-    title: typeof candidate.title === 'string' ? candidate.title : 'Untitled task',
-    notes: typeof candidate.notes === 'string' ? candidate.notes : '',
-    isCompleted,
-    createdAt: typeof candidate.createdAt === 'string' ? candidate.createdAt : now,
-    updatedAt: typeof candidate.updatedAt === 'string' ? candidate.updatedAt : now,
-    accent: normalizeTodoAccent(candidate.accent),
-    columnId: normalizeTodoColumnId(candidate.columnId, isCompleted),
-  }
-}
-
-function normalizePersistedState(raw: unknown): PersistedState {
-  if (!raw || typeof raw !== 'object') {
-    return cloneDefaultState()
-  }
-
-  const candidate = raw as Partial<PersistedState>
-  const todos = Array.isArray(candidate.todos) ? candidate.todos.map(normalizeTodo) : []
-  const selectedTodoId =
-    typeof candidate.selectedTodoId === 'string' && todos.some((todo) => todo.id === candidate.selectedTodoId)
-      ? candidate.selectedTodoId
-      : null
-
-  return {
-    ...cloneDefaultState(),
-    ...candidate,
-    todos,
-    selectedTodoId,
-  }
-}
 
 function notifyWindowState(snapshot: WindowSnapshot): void {
   for (const listener of windowStateListeners) {
@@ -69,12 +29,12 @@ function readFallbackState(): PersistedState {
     const raw = window.localStorage.getItem(storageKey)
 
     if (!raw) {
-      return cloneDefaultState()
+      return createDefaultState()
     }
 
     return normalizePersistedState(JSON.parse(raw))
   } catch {
-    return cloneDefaultState()
+    return createDefaultState()
   }
 }
 
@@ -131,6 +91,48 @@ const fallbackDesktopApi: DesktopApi = {
   },
   async close() {
     window.close()
+  },
+  async exportState() {
+    const state = readFallbackState()
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'todolistss-backup.json'
+    link.click()
+    URL.revokeObjectURL(url)
+    return true
+  },
+  async importState() {
+    return new Promise((resolve) => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.json'
+      input.onchange = async () => {
+        const file = input.files?.[0]
+        if (!file) {
+          resolve(null)
+          return
+        }
+
+        try {
+          const text = await file.text()
+          const parsed = JSON.parse(text)
+          const normalized = normalizePersistedState(parsed)
+          writeFallbackState(normalized)
+          resolve(normalized)
+        } catch {
+          resolve(null)
+        }
+      }
+      input.click()
+    })
+  },
+  async toggleAutoStart() {
+    return false
+  },
+  async getAutoStart() {
+    return false
   },
   onWindowState(listener) {
     windowStateListeners.add(listener)
@@ -211,6 +213,18 @@ export const desktopApi: DesktopApi = {
   },
   async close() {
     return getActiveDesktopApi().close()
+  },
+  async exportState() {
+    return getActiveDesktopApi().exportState()
+  },
+  async importState() {
+    return getActiveDesktopApi().importState()
+  },
+  async toggleAutoStart() {
+    return getActiveDesktopApi().toggleAutoStart()
+  },
+  async getAutoStart() {
+    return getActiveDesktopApi().getAutoStart()
   },
   onWindowState(listener) {
     return getActiveDesktopApi().onWindowState(listener)

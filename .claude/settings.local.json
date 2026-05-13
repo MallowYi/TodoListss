@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(curl *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \"5173\")",
+      "Bash(taskkill /F /PID 45236)",
+      "Bash(taskkill /F /IM electron.exe)",
+      "Bash(taskkill /F /IM node.exe)",
+      "PowerShell(Stop-Process *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell([Environment]::GetFolderPath\\('Desktop'\\))",
+      "Read(//c/Users/Yi/AppData/Local/Programs/**)",
+      "Read(//c/Users/Yi/AppData/Local/**)",
+      "PowerShell($shell = New-Object -ComObject WScript.Shell; $lnk = $shell.CreateShortcut\\(\"C:\\\\Users\\\\Yi\\\\Desktop\\\\TodoListss.lnk\"\\); Write-Output \"Target: $\\($lnk.TargetPath\\)\"; Write-Output \"WorkingDir: $\\($lnk.WorkingDirectory\\)\")"
+    ]
+  }
+}

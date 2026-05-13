@@ -3,74 +3,39 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
-  GripHorizontal,
+  Download,
   LayoutGrid,
   ListTodo,
+  Moon,
   Pin,
-  Plus,
   Sparkles,
-  StickyNote,
-  Trash2,
+  Sun,
+  Upload,
 } from 'lucide-react'
 import './App.css'
-import type { PersistedState, TodoAccent, TodoColumnId, TodoItem, WindowSnapshot } from '../shared/contracts'
-import {
-  completedTodoColumnId,
-  createDefaultState,
-  defaultTodoColumnId,
-  normalizeTodoColumnId,
-  todoAccents,
-} from '../shared/contracts'
+import type { PersistedState, TodoColumnId, TodoItem, WindowSnapshot } from '../shared/contracts'
+import { createDefaultState, defaultTodoColumnId, completedTodoColumnId } from '../shared/contracts'
 import { desktopApi, getDesktopBridgeMode, type BridgeMode, waitForDesktopBridge } from './lib/desktopApi'
+import {
+  accentSequence,
+  createTodo,
+  formatTimestamp,
+  isOverdue,
+  moveTodoInBoard,
+  widgetColumnDefinitions,
+  widgetColumnLabelMap,
+  widgetRevealTransitionMs,
+  accentClassMap,
+} from './lib/todoUtils'
+import { StatsGrid } from './components/StatsGrid'
+import { ProgressBar } from './components/ProgressBar'
+import { Composer } from './components/Composer'
+import { Trash2 as TrashIcon } from 'lucide-react'
+import { TodoDetailPanel } from './components/TodoDetailPanel'
+import { WidgetBoard } from './components/WidgetBoard'
 
 type FilterMode = 'all' | 'open' | 'done'
-
-const accentClassMap: Record<TodoAccent, string> = {
-  violet: 'todo-card--violet',
-  cyan: 'todo-card--cyan',
-  rose: 'todo-card--rose',
-  amber: 'todo-card--amber',
-  emerald: 'todo-card--emerald',
-}
-
-const accentSequence: TodoAccent[] = [...todoAccents]
-const widgetRevealTransitionMs = 264
-
-const widgetColumnLabelMap: Record<TodoColumnId, string> = {
-  backlog: '收集箱',
-  today: '今天',
-  inProgress: '进行中',
-  waiting: '待跟进',
-  done: '已完成',
-}
-
-const widgetColumnDefinitions: ReadonlyArray<{ id: TodoColumnId; title: string; subtitle: string }> = [
-  {
-    id: 'backlog',
-    title: '收集箱',
-    subtitle: '新的想法和刚进来的卡片',
-  },
-  {
-    id: 'today',
-    title: '今天',
-    subtitle: '这会儿最值得推进的事',
-  },
-  {
-    id: 'inProgress',
-    title: '进行中',
-    subtitle: '已经开始，继续往前推',
-  },
-  {
-    id: 'waiting',
-    title: '待跟进',
-    subtitle: '等反馈、等确认或稍后处理',
-  },
-  {
-    id: 'done',
-    title: '已完成',
-    subtitle: '今天已经落地的内容',
-  },
-]
+type SortMode = 'created' | 'updated'
 
 const emptyWindowState: WindowSnapshot = {
   widgetMode: false,
@@ -92,101 +57,6 @@ function isElectronUserAgent(): boolean {
   return typeof navigator !== 'undefined' && /\bElectron\/\d+/i.test(navigator.userAgent)
 }
 
-function formatTimestamp(isoValue: string): string {
-  const value = new Date(isoValue)
-
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(value)
-}
-
-function createTodo(title: string, notes: string, accent: TodoAccent): TodoItem {
-  const now = new Date().toISOString()
-
-  return {
-    id: crypto.randomUUID(),
-    title: title.trim(),
-    notes: notes.trim(),
-    isCompleted: false,
-    createdAt: now,
-    updatedAt: now,
-    accent,
-    columnId: defaultTodoColumnId,
-  }
-}
-
-function getBoardInsertionIndex(todos: TodoItem[], targetColumnId: TodoColumnId, targetTodoId: string | null): number {
-  if (targetTodoId) {
-    const targetIndex = todos.findIndex((todo) => todo.id === targetTodoId)
-
-    if (targetIndex >= 0) {
-      return targetIndex
-    }
-  }
-
-  let lastIndexInColumn = -1
-
-  for (let todoIndex = todos.length - 1; todoIndex >= 0; todoIndex -= 1) {
-    if (todos[todoIndex].columnId === targetColumnId) {
-      lastIndexInColumn = todoIndex
-      break
-    }
-  }
-
-  if (lastIndexInColumn >= 0) {
-    return lastIndexInColumn + 1
-  }
-
-  const targetColumnIndex = widgetColumnDefinitions.findIndex((column) => column.id === targetColumnId)
-
-  for (let columnIndex = targetColumnIndex + 1; columnIndex < widgetColumnDefinitions.length; columnIndex += 1) {
-    const nextColumnTodoIndex = todos.findIndex((todo) => todo.columnId === widgetColumnDefinitions[columnIndex].id)
-
-    if (nextColumnTodoIndex >= 0) {
-      return nextColumnTodoIndex
-    }
-  }
-
-  return todos.length
-}
-
-function moveTodoInBoard(
-  todos: TodoItem[],
-  sourceTodoId: string,
-  targetColumnId: TodoColumnId,
-  targetTodoId: string | null,
-): TodoItem[] {
-  const sourceIndex = todos.findIndex((todo) => todo.id === sourceTodoId)
-
-  if (sourceIndex < 0) {
-    return todos
-  }
-
-  const sourceTodo = todos[sourceIndex]
-  const nextColumnId = normalizeTodoColumnId(targetColumnId, targetColumnId === completedTodoColumnId)
-
-  if (sourceTodo.id === targetTodoId && sourceTodo.columnId === nextColumnId) {
-    return todos
-  }
-
-  const nextTodos = [...todos]
-  nextTodos.splice(sourceIndex, 1)
-
-  const movedTodo: TodoItem = {
-    ...sourceTodo,
-    columnId: nextColumnId,
-    isCompleted: nextColumnId === completedTodoColumnId,
-    updatedAt: new Date().toISOString(),
-  }
-  const targetIndex = getBoardInsertionIndex(nextTodos, nextColumnId, targetTodoId)
-  nextTodos.splice(targetIndex, 0, movedTodo)
-
-  return nextTodos
-}
-
 function App() {
   const [state, setState] = useState<PersistedState>(createDefaultState())
   const [windowState, setWindowState] = useState<WindowSnapshot>(emptyWindowState)
@@ -195,8 +65,13 @@ function App() {
   const [draftNotes, setDraftNotes] = useState('')
   const [isWidgetCreateDialogOpen, setIsWidgetCreateDialogOpen] = useState(false)
   const [widgetCreateTitle, setWidgetCreateTitle] = useState('')
+  const titleInputRef = useRef<HTMLInputElement>(null)
   const widgetCreateTitleTrimmed = widgetCreateTitle.trim()
   const canSubmitWidgetCreate = widgetCreateTitleTrimmed.length > 0
+  const [editingTodoId, setEditingTodoId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
+  const [editingNotes, setEditingNotes] = useState('')
+  const [editingDueDate, setEditingDueDate] = useState('')
 
   function openWidgetCreateDialog(): void {
     setWidgetCreateTitle('')
@@ -206,6 +81,50 @@ function App() {
   function closeWidgetCreateDialog(): void {
     setWidgetCreateTitle('')
     setIsWidgetCreateDialogOpen(false)
+  }
+
+  function openWidgetEditDialog(todo: TodoItem): void {
+    setEditingTodoId(todo.id)
+    setEditingTitle(todo.title)
+    setEditingNotes(todo.notes)
+    setEditingDueDate(todo.dueDate ?? '')
+  }
+
+  function closeWidgetEditDialog(): void {
+    setEditingTodoId(null)
+    setEditingTitle('')
+    setEditingNotes('')
+    setEditingDueDate('')
+  }
+
+  function handleWidgetEditSave(): void {
+    if (!editingTodoId || !editingTitle.trim()) {
+      return
+    }
+
+    updateTodos((todos) =>
+      todos.map((todo) =>
+        todo.id === editingTodoId
+          ? {
+              ...todo,
+              title: editingTitle.trim(),
+              notes: editingNotes.trim(),
+              dueDate: editingDueDate || null,
+              updatedAt: new Date().toISOString(),
+            }
+          : todo,
+      ),
+    )
+    closeWidgetEditDialog()
+  }
+
+  function handleWidgetEditDelete(): void {
+    if (!editingTodoId) {
+      return
+    }
+
+    handleDeleteTodo(editingTodoId)
+    closeWidgetEditDialog()
   }
 
   function handleWidgetCreateSubmit(): void {
@@ -226,6 +145,9 @@ function App() {
     closeWidgetCreateDialog()
   }
   const [filter, setFilter] = useState<FilterMode>('all')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortMode, setSortMode] = useState<SortMode>('created')
+  const [showTrash, setShowTrash] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [bootMessage, setBootMessage] = useState<string | null>(null)
   const [draggedTodoId, setDraggedTodoId] = useState<string | null>(null)
@@ -355,21 +277,93 @@ function App() {
     }
   }, [windowState.autoHidden, windowState.dockEdge, windowState.widgetMode])
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', state.theme)
+  }, [state.theme])
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.ctrlKey || event.metaKey) {
+        if (event.key === 'n' || event.key === 'N') {
+          event.preventDefault()
+          if (windowState.widgetMode) {
+            openWidgetCreateDialog()
+          }
+        }
+
+        if (event.key === 'f' || event.key === 'F') {
+          event.preventDefault()
+          const searchInput = document.querySelector<HTMLInputElement>('.search-bar .text-input')
+          searchInput?.focus()
+        }
+      }
+
+      if (event.key === 'Escape') {
+        if (editingTodoId) {
+          closeWidgetEditDialog()
+        } else if (isWidgetCreateDialogOpen) {
+          closeWidgetCreateDialog()
+        } else if (state.selectedTodoId) {
+          selectTodo('')
+        }
+      }
+
+      if (event.key === 'Delete' && state.selectedTodoId && !editingTodoId) {
+        const active = document.activeElement
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+          return
+        }
+        const todoId = state.selectedTodoId
+        setState((current) => {
+          const todo = current.todos.find((t) => t.id === todoId)
+
+          if (!todo) {
+            return current
+          }
+
+          return {
+            ...current,
+            todos: current.todos.filter((t) => t.id !== todoId),
+            trash: [{ ...todo, deletedAt: new Date().toISOString() }, ...current.trash],
+            selectedTodoId: current.selectedTodoId === todoId ? current.todos.find((t) => t.id !== todoId)?.id ?? null : current.selectedTodoId,
+          }
+        })
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [windowState.widgetMode, editingTodoId, isWidgetCreateDialogOpen, state.selectedTodoId])
+
   const selectedTodo = useMemo(
     () => state.todos.find((todo) => todo.id === state.selectedTodoId) ?? null,
     [state.selectedTodoId, state.todos],
   )
 
   const filteredTodos = useMemo(() => {
-    switch (filter) {
-      case 'open':
-        return state.todos.filter((todo) => !todo.isCompleted)
-      case 'done':
-        return state.todos.filter((todo) => todo.isCompleted)
-      default:
-        return state.todos
-    }
-  }, [filter, state.todos])
+    const query = searchQuery.trim().toLowerCase()
+    const byStatus = (() => {
+      switch (filter) {
+        case 'open':
+          return state.todos.filter((todo) => !todo.isCompleted)
+        case 'done':
+          return state.todos.filter((todo) => todo.isCompleted)
+        default:
+          return state.todos
+      }
+    })()
+
+    const searched = query
+      ? byStatus.filter(
+          (todo) => todo.title.toLowerCase().includes(query) || todo.notes.toLowerCase().includes(query),
+        )
+      : byStatus
+
+    return [...searched].sort((a, b) => {
+      const key = sortMode === 'created' ? 'createdAt' : 'updatedAt'
+      return new Date(b[key]).getTime() - new Date(a[key]).getTime()
+    })
+  }, [filter, searchQuery, sortMode, state.todos])
 
   const completedCount = useMemo(() => state.todos.filter((todo) => todo.isCompleted).length, [state.todos])
   const openCount = state.todos.length - completedCount
@@ -380,6 +374,33 @@ function App() {
         ...column,
         todos: state.todos.filter((todo) => todo.columnId === column.id),
       })),
+    [state.todos],
+  )
+  const focusTodo = useMemo(
+    () =>
+      state.todos.find((todo) => !todo.isCompleted && todo.columnId === 'today') ??
+      state.todos.find((todo) => !todo.isCompleted) ??
+      state.todos[0] ??
+      null,
+    [state.todos],
+  )
+  const recentTodos = useMemo(
+    () =>
+      [...state.todos]
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, 3),
+    [state.todos],
+  )
+  const distributionItems = useMemo(
+    () =>
+      widgetColumnDefinitions.map((column) => {
+        const count = state.todos.filter((todo) => todo.columnId === column.id).length
+        return {
+          ...column,
+          count,
+          percent: state.todos.length === 0 ? 0 : Math.max(8, Math.round((count / state.todos.length) * 100)),
+        }
+      }),
     [state.todos],
   )
 
@@ -440,10 +461,53 @@ function App() {
   }
 
   function handleDeleteTodo(todoId: string): void {
-    updateTodos((todos) => todos.filter((todo) => todo.id !== todoId))
+    const todo = state.todos.find((t) => t.id === todoId)
+    if (!todo) return
+
+    setState((current) => ({
+      ...current,
+      todos: current.todos.filter((t) => t.id !== todoId),
+      trash: [{ ...todo, deletedAt: new Date().toISOString() }, ...current.trash],
+      selectedTodoId: current.selectedTodoId === todoId ? current.todos.find((t) => t.id !== todoId)?.id ?? null : current.selectedTodoId,
+    }))
   }
 
-  function handleSelectedTodoChange<K extends keyof Pick<TodoItem, 'title' | 'notes'>>(
+  function handleRestoreFromTrash(trashItemId: string): void {
+    const item = state.trash.find((t) => t.id === trashItemId)
+    if (!item) return
+
+    const todo: TodoItem = {
+      id: item.id,
+      title: item.title,
+      notes: item.notes,
+      isCompleted: item.isCompleted,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+      dueDate: item.dueDate,
+      accent: item.accent,
+      columnId: item.columnId,
+    }
+
+    setState((current) => ({
+      ...current,
+      todos: [todo, ...current.todos],
+      trash: current.trash.filter((t) => t.id !== trashItemId),
+      selectedTodoId: todo.id,
+    }))
+  }
+
+  function handlePermanentDelete(trashItemId: string): void {
+    setState((current) => ({
+      ...current,
+      trash: current.trash.filter((t) => t.id !== trashItemId),
+    }))
+  }
+
+  function handleEmptyTrash(): void {
+    setState((current) => ({ ...current, trash: [] }))
+  }
+
+  function handleSelectedTodoChange<K extends keyof Pick<TodoItem, 'title' | 'notes' | 'dueDate'>>(
     field: K,
     value: TodoItem[K],
   ): void {
@@ -510,247 +574,61 @@ function App() {
   }
 
   if (windowState.widgetMode && canUseNativeWidget) {
-    const isWidgetHidden = windowState.autoHidden && windowState.dockEdge !== null
-    const widgetShellClassName = [
-      'widget-board-shell',
-      windowState.dockEdge ? `widget-board-shell--dock-${windowState.dockEdge}` : '',
-      isWidgetHidden ? 'widget-board-shell--hidden' : '',
-      isWidgetRevealActive ? 'widget-board-shell--revealing' : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
-
     return (
-      <div
-        className={widgetShellClassName}
-        onContextMenu={(event) => {
-          event.preventDefault()
-          void desktopApi.showWidgetMenu()
+      <WidgetBoard
+        state={state}
+        windowState={windowState}
+        isWidgetRevealActive={isWidgetRevealActive}
+        widgetColumns={widgetColumns}
+        completedCount={completedCount}
+        isWidgetCreateDialogOpen={isWidgetCreateDialogOpen}
+        widgetCreateTitle={widgetCreateTitle}
+        canSubmitWidgetCreate={canSubmitWidgetCreate}
+        editingTodoId={editingTodoId}
+        editingTitle={editingTitle}
+        editingNotes={editingNotes}
+        onSelectTodo={selectTodo}
+        onWidgetModeToggle={() => void handleWidgetModeToggle()}
+        onShowWidgetMenu={() => void desktopApi.showWidgetMenu()}
+        onOpenCreateDialog={openWidgetCreateDialog}
+        onCloseCreateDialog={closeWidgetCreateDialog}
+        onWidgetCreateTitleChange={setWidgetCreateTitle}
+        onWidgetCreateSubmit={handleWidgetCreateSubmit}
+        onOpenEditDialog={openWidgetEditDialog}
+        onCloseEditDialog={closeWidgetEditDialog}
+        onEditingTitleChange={setEditingTitle}
+        onEditingNotesChange={setEditingNotes}
+        onEditingDueDateChange={setEditingDueDate}
+        editingDueDate={editingDueDate}
+        onEditSave={handleWidgetEditSave}
+        onEditDelete={handleWidgetEditDelete}
+        onDragEnd={clearWidgetDragState}
+        onDragStart={(todoId, columnId) => {
+          setDraggedTodoId(todoId)
+          setDragOverColumnId(columnId)
+          setDragOverTodoId(todoId)
         }}
-      >
-        {isWidgetHidden ? (
-          <div className={`widget-edge-handle widget-edge-handle--${windowState.dockEdge}`} title="移到这里呼出挂件">
-            <div className="widget-edge-handle__glow" />
-            <div className="widget-edge-handle__grip" aria-hidden="true" />
-          </div>
-        ) : (
-          <>
-            <header
-              className="widget-board-header"
-              onDoubleClick={() => {
-                void handleWidgetModeToggle()
-              }}
-              title="拖动顶栏可贴边隐藏；双击返回桌面；右键打开菜单"
-            >
-              <div className="widget-board-brand">
-                <div className="widget-board-brand__badge">
-                  <LayoutGrid size={18} />
-                </div>
-                <div>
-                  <div className="widget-board-brand__title">挂件看板</div>
-                  <div className="widget-board-brand__subtitle">更接近 Trello 的横向多列布局</div>
-                </div>
-              </div>
-
-              <div className="widget-board-pills">
-                <span className="widget-board-pill">
-                  <ListTodo size={14} />
-                  {state.todos.length} 张卡片
-                </span>
-                <span className="widget-board-pill widget-board-pill--success">
-                  <CheckCircle2 size={14} />
-                  已完成 {completedCount}
-                </span>
-                {windowState.dockEdge && (
-                  <span className="widget-board-pill widget-board-pill--accent">
-                    <Pin size={14} />
-                    已贴边 {windowState.dockEdge}
-                  </span>
-                )}
-                <span className="widget-board-pill widget-board-pill--soft">拖动顶栏到屏幕边缘可自动隐藏</span>
-              </div>
-
-              <div className="widget-board-actions">
-                <button className="widget-board-button widget-board-button--primary" onClick={openWidgetCreateDialog} type="button">
-                  <Plus size={16} />
-                  新增待办
-                </button>
-                <button
-                  className="widget-board-button"
-                  onClick={() => {
-                    void handleWidgetModeToggle()
-                  }}
-                  type="button"
-                >
-                  退出挂件
-                </button>
-              </div>
-            </header>
-
-            {isWidgetCreateDialogOpen ? (
-              <div className="widget-dialog-backdrop" onClick={closeWidgetCreateDialog} role="presentation">
-                <div
-                  aria-describedby="widget-create-dialog-description"
-                  aria-labelledby="widget-create-dialog-title"
-                  aria-modal="true"
-                  className="widget-dialog"
-                  onClick={(event) => event.stopPropagation()}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Escape') {
-                      event.preventDefault()
-                      closeWidgetCreateDialog()
-                    }
-                  }}
-                  role="dialog"
-                >
-                  <h2 id="widget-create-dialog-title">新增待办</h2>
-                  <p id="widget-create-dialog-description">输入标题后直接进入收集箱。</p>
-                  <input
-                    autoFocus
-                    className="widget-dialog__input"
-                    maxLength={80}
-                    onChange={(event) => setWidgetCreateTitle(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' && canSubmitWidgetCreate) {
-                        event.preventDefault()
-                        handleWidgetCreateSubmit()
-                      }
-                    }}
-                    placeholder="比如：整理今天最先推进的一件事"
-                    value={widgetCreateTitle}
-                  />
-                  <div className="widget-dialog__actions">
-                    <button className="widget-board-button widget-board-button--subtle" onClick={closeWidgetCreateDialog} type="button">
-                      取消
-                    </button>
-                    <button
-                      className="widget-board-button widget-board-button--primary"
-                      disabled={!canSubmitWidgetCreate}
-                      onClick={handleWidgetCreateSubmit}
-                      type="button"
-                    >
-                      创建
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="widget-board">
-              {widgetColumns.map((column) => (
-                <section
-                  key={column.id}
-                  className={`widget-column ${dragOverColumnId === column.id ? 'widget-column--drag-over' : ''}`}
-                  onDragOver={(event) => {
-                    event.preventDefault()
-
-                    if (dragOverColumnId !== column.id) {
-                      setDragOverColumnId(column.id)
-                    }
-
-                    if (dragOverTodoId !== null) {
-                      setDragOverTodoId(null)
-                    }
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    handleWidgetTodoDrop(column.id)
-                  }}
-                >
-                  <header className="widget-column__header">
-                    <div>
-                      <span className="widget-column__eyebrow">{column.subtitle}</span>
-                      <h2>{column.title}</h2>
-                    </div>
-                    <span className="widget-column__count">{column.todos.length}</span>
-                  </header>
-
-                  <div className="widget-column__list">
-                    {column.todos.length === 0 ? (
-                      <div className="widget-column__empty">
-                        <span>这里还没有卡片</span>
-                        <p>把任务拖到这一列，整理出和截图更接近的节奏。</p>
-                      </div>
-                    ) : (
-                      column.todos.map((todo) => (
-                        <article
-                          key={todo.id}
-                          className={`widget-board-card widget-board-card--${todo.accent} ${
-                            state.selectedTodoId === todo.id ? 'widget-board-card--selected' : ''
-                          } ${todo.isCompleted ? 'widget-board-card--completed' : ''} ${
-                            dragOverTodoId === todo.id ? 'widget-board-card--drag-over' : ''
-                          }`}
-                          draggable
-                          onClick={() => selectTodo(todo.id)}
-                          onDragEnd={clearWidgetDragState}
-                          onDragOver={(event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
-
-                            if (dragOverColumnId !== column.id) {
-                              setDragOverColumnId(column.id)
-                            }
-
-                            if (dragOverTodoId !== todo.id) {
-                              setDragOverTodoId(todo.id)
-                            }
-                          }}
-                          onDragStart={() => {
-                            setDraggedTodoId(todo.id)
-                            setDragOverColumnId(column.id)
-                            setDragOverTodoId(todo.id)
-                          }}
-                          onDrop={(event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
-                            handleWidgetTodoDrop(column.id, todo.id)
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault()
-                              selectTodo(todo.id)
-                            }
-                          }}
-                          role="button"
-                          tabIndex={0}
-                          title={todo.notes ? `${todo.title}\n\n${todo.notes}` : todo.title}
-                        >
-                          <div className={`widget-board-card__accent widget-board-card__accent--${todo.accent}`} />
-
-                          <div className="widget-board-card__header">
-                            <span className="widget-board-card__badge">{widgetColumnLabelMap[todo.columnId]}</span>
-                            <button
-                              aria-label={todo.isCompleted ? `将 ${todo.title} 设为未完成` : `完成 ${todo.title}`}
-                              className={`widget-check-button ${todo.isCompleted ? 'widget-check-button--checked' : ''}`}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                handleToggleTodo(todo.id)
-                              }}
-                              type="button"
-                            >
-                              {todo.isCompleted ? <Check size={14} /> : null}
-                            </button>
-                          </div>
-
-                          <div className="widget-board-card__content">
-                            <h3>{todo.title}</h3>
-                            {todo.notes ? <p>{todo.notes}</p> : null}
-                          </div>
-
-                          <div className="widget-board-card__meta">
-                            <span>{todo.notes ? '附带备注' : '仅标题卡片'}</span>
-                            <span>{formatTimestamp(todo.updatedAt)}</span>
-                          </div>
-                        </article>
-                      ))
-                    )}
-                  </div>
-                </section>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+        onDragOverColumn={(columnId) => {
+          if (dragOverColumnId !== columnId) {
+            setDragOverColumnId(columnId)
+          }
+          if (dragOverTodoId !== null) {
+            setDragOverTodoId(null)
+          }
+        }}
+        onDragOverTodo={(todoId, columnId) => {
+          if (dragOverColumnId !== columnId) {
+            setDragOverColumnId(columnId)
+          }
+          if (dragOverTodoId !== todoId) {
+            setDragOverTodoId(todoId)
+          }
+        }}
+        onDrop={handleWidgetTodoDrop}
+        dragOverTodoId={dragOverTodoId}
+        dragOverColumnId={dragOverColumnId}
+        onToggleTodo={handleToggleTodo}
+      />
     )
   }
 
@@ -766,9 +644,6 @@ function App() {
           </div>
           <div>
             <div className="window-brand__title">TodoListss</div>
-            <div className="window-brand__subtitle">
-              参考了 GitHub 上的 `electron-app` 结构风格和 `shadcn/ui` 视觉语言
-            </div>
           </div>
         </div>
 
@@ -802,100 +677,132 @@ function App() {
         </div>
 
         <div className="window-actions">
-          <div className="window-frame-hint">正常模式保留系统标题栏，可以直接拖动、缩放和最大化。</div>
+          <button
+            className={`status-pill status-pill--action ${showTrash ? 'status-pill--action-active' : ''}`}
+            onClick={() => setShowTrash((prev) => !prev)}
+            title="回收站"
+            type="button"
+          >
+            <TrashIcon size={14} />
+            回收站 {state.trash.length > 0 ? `(${state.trash.length})` : ''}
+          </button>
+          <button
+            className="status-pill status-pill--action"
+            onClick={() => setState((current) => ({ ...current, theme: current.theme === 'dark' ? 'light' : 'dark' }))}
+            title={state.theme === 'dark' ? '切换到亮色主题' : '切换到暗色主题'}
+            type="button"
+          >
+            {state.theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+            {state.theme === 'dark' ? '亮色' : '暗色'}
+          </button>
+          <button
+            className="status-pill status-pill--action"
+            onClick={() => void desktopApi.exportState()}
+            title="导出数据"
+            type="button"
+          >
+            <Download size={14} />
+            导出
+          </button>
+          <button
+            className="status-pill status-pill--action"
+            onClick={async () => {
+              const imported = await desktopApi.importState()
+              if (imported) {
+                setState((current) => ({ ...current, ...imported }))
+              }
+            }}
+            title="导入数据"
+            type="button"
+          >
+            <Upload size={14} />
+            导入
+          </button>
         </div>
       </header>
 
       <main className="dashboard">
         <section className="panel hero-panel">
           <div className="hero-panel__content">
-            <div className="eyebrow">
-              <GripHorizontal size={14} />
-              {windowState.alwaysOnTop ? '始终置顶' : '专注工作台'}
-            </div>
-            <h1>把待办放进一个更顺眼的桌面挂件里。</h1>
-            <p>
-              这版改成了 Electron + React，界面更轻盈，也更容易继续做视觉打磨。拖到屏幕边缘时会自动贴边，离开后自动隐藏。
-            </p>
+            <StatsGrid totalCount={state.todos.length} openCount={openCount} completedCount={completedCount} />
+            <ProgressBar completionRate={completionRate} />
 
-            <div className="hero-actions">
+            <div className="dashboard-focus">
+              <div>
+                <span className="dashboard-eyebrow">今日焦点</span>
+                <h2>{focusTodo ? focusTodo.title : '今天还没有任务'}</h2>
+                <p>
+                  {focusTodo
+                    ? focusTodo.notes || `当前在「${widgetColumnLabelMap[focusTodo.columnId]}」中，适合优先处理。`
+                    : '添加一条任务后，这里会自动展示你最需要关注的事项。'}
+                </p>
+              </div>
               <button
                 className="secondary-button secondary-button--glow"
-                onClick={() => {
-                  void handleWidgetModeToggle()
-                }}
+                disabled={!focusTodo}
+                onClick={() => focusTodo && selectTodo(focusTodo.id)}
                 type="button"
               >
-                <LayoutGrid size={16} />
-                {windowState.widgetMode ? '退出挂件模式' : '切换到挂件模式'}
+                <Pin size={15} />
+                查看
               </button>
-              <span>{windowState.widgetMode ? '当前是挂件看板窗口，拖动顶栏可以贴边隐藏。' : '当前是常规桌面窗口，系统标题栏已恢复。'}</span>
             </div>
 
-            <div className="stat-grid">
-              <div className="stat-card">
-                <span>全部任务</span>
-                <strong>{state.todos.length}</strong>
+            <div className="dashboard-grid">
+              <div className="dashboard-distribution">
+                <div className="dashboard-section-title">
+                  <span>任务分布</span>
+                  <strong>{completionRate}%</strong>
+                </div>
+                <div className="distribution-list">
+                  {distributionItems.map((item) => (
+                    <div className="distribution-item" key={item.id}>
+                      <div className="distribution-item__label">
+                        <span>{item.title}</span>
+                        <strong>{item.count}</strong>
+                      </div>
+                      <div className="distribution-track">
+                        <div className="distribution-track__value" style={{ width: `${item.percent}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="stat-card">
-                <span>进行中</span>
-                <strong>{openCount}</strong>
-              </div>
-              <div className="stat-card">
-                <span>已完成</span>
-                <strong>{completedCount}</strong>
-              </div>
-            </div>
 
-            <div className="progress-card">
-              <div className="progress-card__header">
-                <span>今日进度</span>
-                <strong>{completionRate}%</strong>
-              </div>
-              <div className="progress-track">
-                <div className="progress-track__value" style={{ width: `${completionRate}%` }} />
+              <div className="dashboard-activity">
+                <div className="dashboard-section-title">
+                  <span>最近更新</span>
+                  <strong>{recentTodos.length}</strong>
+                </div>
+                {recentTodos.length === 0 ? (
+                  <p className="dashboard-empty">任务更新会显示在这里。</p>
+                ) : (
+                  <div className="activity-list">
+                    {recentTodos.map((todo) => (
+                      <button className="activity-item" key={todo.id} onClick={() => selectTodo(todo.id)} type="button">
+                        <CheckCircle2 size={14} />
+                        <span>{todo.title}</span>
+                        <small>{formatTimestamp(todo.updatedAt)}</small>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          <div className="composer">
-            <div className="composer__label">快速添加</div>
-            <div className="composer__input-group">
-              <input
-                className="text-input"
-                maxLength={80}
-                onChange={(event) => setDraftTitle(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
-                    event.preventDefault()
-                    handleAddTodo()
-                  }
-                }}
-                placeholder="今天最重要的一件事是什么？"
-                value={draftTitle}
-              />
-              <textarea
-                className="text-area"
-                maxLength={240}
-                onChange={(event) => setDraftNotes(event.target.value)}
-                placeholder="补充一点备注，会显示在右侧详情里。"
-                rows={4}
-                value={draftNotes}
-              />
-            </div>
-            <button className="primary-button" onClick={handleAddTodo} type="button">
-              <Plus size={16} />
-              添加任务
-            </button>
-          </div>
+          <Composer
+            draftTitle={draftTitle}
+            draftNotes={draftNotes}
+            onDraftTitleChange={setDraftTitle}
+            onDraftNotesChange={setDraftNotes}
+            onAdd={handleAddTodo}
+          />
         </section>
 
         <section className="panel list-panel">
           <div className="section-header">
-            <div>
-              <h2>任务列表</h2>
-              <p>更像一个现代工作台，而不是默认系统窗体。</p>
-            </div>
+            <h2>任务列表</h2>
             <div className="filter-group">
               {(['all', 'open', 'done'] as const).map((option) => (
                 <button
@@ -908,6 +815,23 @@ function App() {
                 </button>
               ))}
             </div>
+            <button
+              className="chip-button"
+              onClick={() => setSortMode((prev) => (prev === 'created' ? 'updated' : 'created'))}
+              title={sortMode === 'created' ? '按创建时间排序' : '按更新时间排序'}
+              type="button"
+            >
+              {sortMode === 'created' ? '创建时间' : '更新时间'}
+            </button>
+          </div>
+
+          <div className="search-bar">
+            <input
+              className="text-input"
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="搜索任务标题或备注…"
+              value={searchQuery}
+            />
           </div>
 
           <div className="todo-list">
@@ -925,8 +849,12 @@ function App() {
                   key={todo.id}
                   className={`todo-card ${accentClassMap[todo.accent]} ${
                     state.selectedTodoId === todo.id ? 'todo-card--selected' : ''
-                  } ${todo.isCompleted ? 'todo-card--completed' : ''}`}
+                  } ${todo.isCompleted ? 'todo-card--completed' : ''} ${isOverdue(todo) ? 'todo-card--overdue' : ''}`}
                   onClick={() => selectTodo(todo.id)}
+                  onDoubleClick={() => {
+                    selectTodo(todo.id)
+                    setTimeout(() => titleInputRef.current?.focus(), 0)
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault()
@@ -967,70 +895,73 @@ function App() {
           </div>
         </section>
 
-        <aside className="panel detail-panel">
-          <div className="section-header">
-            <div>
-              <h2>任务详情</h2>
-              <p>选中一条任务后可以直接编辑。</p>
-            </div>
-          </div>
-
-          {selectedTodo ? (
-            <div className="detail-content">
-              <label className="field">
-                <span>标题</span>
-                <input
-                  className="text-input"
-                  maxLength={80}
-                  onChange={(event) => handleSelectedTodoChange('title', event.target.value)}
-                  value={selectedTodo.title}
-                />
-              </label>
-
-              <label className="field">
-                <span>备注</span>
-                <textarea
-                  className="text-area text-area--detail"
-                  maxLength={240}
-                  onChange={(event) => handleSelectedTodoChange('notes', event.target.value)}
-                  rows={8}
-                  value={selectedTodo.notes}
-                />
-              </label>
-
-              <div className="detail-meta">
-                <div className="meta-item">
-                  <StickyNote size={16} />
-                  <span>创建于 {formatTimestamp(selectedTodo.createdAt)}</span>
-                </div>
-                <div className="meta-item">
-                  <Pin size={16} />
-                  <span>
-                    当前列：{widgetColumnLabelMap[selectedTodo.columnId]} ·{' '}
-                    {windowState.widgetMode ? '挂件看板里可直接拖到其他列' : '切到挂件模式可用看板整理'}
-                  </span>
-                </div>
+        {showTrash ? (
+          <aside className="panel detail-panel">
+            <div className="section-header">
+              <div>
+                <h2>回收站</h2>
+                <p>已删除的任务保留 30 天。</p>
               </div>
-
-              <div className="detail-actions">
-                <button className="secondary-button" onClick={() => handleToggleTodo(selectedTodo.id)} type="button">
-                  <CheckCircle2 size={16} />
-                  {selectedTodo.isCompleted ? '重新打开' : '标记完成'}
+              {state.trash.length > 0 && (
+                <button className="chip-button" onClick={handleEmptyTrash} type="button">
+                  清空
                 </button>
-                <button className="secondary-button secondary-button--danger" onClick={() => handleDeleteTodo(selectedTodo.id)} type="button">
-                  <Trash2 size={16} />
-                  删除
-                </button>
-              </div>
+              )}
             </div>
-          ) : (
-            <div className="detail-placeholder">
-              <Sparkles size={22} />
-              <strong>选中一条任务</strong>
-              <p>右侧会显示备注、更新时间和操作区。</p>
+            <div className="todo-list">
+              {state.trash.length === 0 ? (
+                <div className="empty-card">
+                  <TrashIcon size={20} />
+                  <div>
+                    <strong>回收站是空的</strong>
+                    <p>删除的任务会出现在这里。</p>
+                  </div>
+                </div>
+              ) : (
+                state.trash.map((item) => (
+                  <div key={item.id} className="todo-card todo-card--trashed">
+                    <div className="todo-card__main">
+                      <div className="todo-card__copy">
+                        <div className="todo-card__title-row">
+                          <h3>{item.title}</h3>
+                        </div>
+                        <p>{item.notes || '没有备注'}</p>
+                      </div>
+                    </div>
+                    <div className="todo-card__meta">
+                      <span>删除于 {formatTimestamp(item.deletedAt)}</span>
+                    </div>
+                    <div className="todo-card__trash-actions">
+                      <button
+                        className="chip-button"
+                        onClick={() => handleRestoreFromTrash(item.id)}
+                        type="button"
+                      >
+                        恢复
+                      </button>
+                      <button
+                        className="chip-button chip-button--danger"
+                        onClick={() => handlePermanentDelete(item.id)}
+                        type="button"
+                      >
+                        永久删除
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          )}
-        </aside>
+          </aside>
+        ) : (
+          <TodoDetailPanel
+            selectedTodo={selectedTodo}
+            titleInputRef={titleInputRef}
+            widgetMode={windowState.widgetMode}
+            onSelectedTodoChange={handleSelectedTodoChange}
+            onToggle={handleToggleTodo}
+            onDelete={handleDeleteTodo}
+          />
+        )}
       </main>
     </div>
   )

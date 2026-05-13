@@ -5,11 +5,13 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: {
+    host: '127.0.0.1',
+  },
   plugins: [
     react(),
     electron({
       main: {
-        // Shortcut of `build.lib.entry`.
         entry: 'electron/main.ts',
       },
       preload: {
@@ -22,6 +24,7 @@ export default defineConfig({
               output: {
                 // This app uses sandbox: false, so the preload must stay ESM.
                 format: 'es',
+                entryFileNames: '[name].mjs',
               },
             },
           },

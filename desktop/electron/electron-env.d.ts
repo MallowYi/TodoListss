@@ -35,6 +35,10 @@ interface Window {
     minimize: () => Promise<void>
     showWidgetMenu: () => Promise<void>
     close: () => Promise<void>
+    exportState: () => Promise<boolean>
+    importState: () => Promise<import('../shared/contracts').PersistedState | null>
+    toggleAutoStart: () => Promise<boolean>
+    getAutoStart: () => Promise<boolean>
     onWindowState: (
       listener: (snapshot: import('../shared/contracts').WindowSnapshot) => void,
     ) => () => void

@@ -9,6 +9,10 @@ contextBridge.exposeInMainWorld('desktopApi', {
   minimize: () => ipcRenderer.invoke('window:minimize') as Promise<void>,
   showWidgetMenu: () => ipcRenderer.invoke('window:show-widget-menu') as Promise<void>,
   close: () => ipcRenderer.invoke('window:close') as Promise<void>,
+  exportState: () => ipcRenderer.invoke('app:export-state') as Promise<boolean>,
+  importState: () => ipcRenderer.invoke('app:import-state') as Promise<PersistedState | null>,
+  toggleAutoStart: () => ipcRenderer.invoke('app:toggle-auto-start') as Promise<boolean>,
+  getAutoStart: () => ipcRenderer.invoke('app:get-auto-start') as Promise<boolean>,
   onWindowState: (listener: (snapshot: WindowSnapshot) => void) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, snapshot: WindowSnapshot) => listener(snapshot)
     ipcRenderer.on('window:state', wrappedListener)

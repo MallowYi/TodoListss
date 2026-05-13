@@ -1,12 +1,11 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeTheme, screen } from 'electron'
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, Menu, nativeImage, nativeTheme, screen, Tray } from 'electron'
 import { promises as fs } from 'node:fs'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   isLegacyBoardWidgetBounds,
-  normalizeTodoAccent,
-  normalizeTodoColumnId,
+  normalizePersistedState,
   createDefaultState,
   normalWindowSize,
   widgetWindowSize,
@@ -32,6 +31,8 @@ const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
+const appIconPngDataUrl =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAk0lEQVR4nNXUsQ3AIAxEUXbJ/tNkD1ZI2hTgGN+dDZboIv0nFNzaaXPd/bFOSVSKicZhBBqGIOz4EkIVdyNKAeq4iciKTxFbA74jAfx9PBoqIgJgQCgABBL6AZkQ6AUwboXyBBEEdQeUA2YYF0C1CS3AWas4BZCJGMazEGZ8C4AS4YqrEEtxJiQcZiAo8VWMJKqcF1nVVCBMaJ9qAAAAAElFTkSuQmCC'
 const dockThreshold = 56
 const widgetMinWidth = 640
 const widgetMinHeight = 400
@@ -42,6 +43,7 @@ type Rectangle = Electron.Rectangle
 type DockSession = DockSessionLike
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
 let persistedState: PersistedState = createDefaultState()
 let dockSession: DockSession | null = null
 let autoHidden = false
@@ -59,8 +61,8 @@ function getStateFilePath(): string {
   return path.join(app.getPath('userData'), 'state.json')
 }
 
-function cloneDefaultState(): PersistedState {
-  return createDefaultState()
+function createAppIcon(): Electron.NativeImage {
+  return nativeImage.createFromDataURL(appIconPngDataUrl)
 }
 
 function toWindowBounds(bounds: Rectangle): WindowBounds {
@@ -86,49 +88,18 @@ function fromWindowBounds(bounds: WindowBounds | null): Rectangle | null {
 }
 
 function sanitizeState(raw: unknown): PersistedState {
-  const fallback = cloneDefaultState()
-
-  if (!raw || typeof raw !== 'object') {
-    return fallback
-  }
-
-  const candidate = raw as Partial<PersistedState>
-  const todos = Array.isArray(candidate.todos)
-    ? candidate.todos
-        .filter((todo): todo is PersistedState['todos'][number] => Boolean(todo) && typeof todo === 'object')
-        .map((todo) => ({
-          id: typeof todo.id === 'string' ? todo.id : crypto.randomUUID(),
-          title: typeof todo.title === 'string' ? todo.title : 'Untitled task',
-          notes: typeof todo.notes === 'string' ? todo.notes : '',
-          isCompleted: Boolean(todo.isCompleted),
-          createdAt: typeof todo.createdAt === 'string' ? todo.createdAt : new Date().toISOString(),
-          updatedAt: typeof todo.updatedAt === 'string' ? todo.updatedAt : new Date().toISOString(),
-          accent: normalizeTodoAccent(todo.accent),
-          columnId: normalizeTodoColumnId(todo.columnId, Boolean(todo.isCompleted)),
-        }))
-    : fallback.todos
-
-  const selectedTodoId =
-    typeof candidate.selectedTodoId === 'string' && todos.some((todo) => todo.id === candidate.selectedTodoId)
-      ? candidate.selectedTodoId
-      : null
-  const widgetBounds = isWindowBounds(candidate.widgetBounds) ? candidate.widgetBounds : null
+  const base = normalizePersistedState(raw)
+  const widgetBounds = isWindowBounds(base.widgetBounds) ? base.widgetBounds : null
   const resetLegacyWidgetState = isLegacyBoardWidgetBounds(widgetBounds)
 
   return {
-    todos,
-    selectedTodoId,
-    widgetMode: Boolean(candidate.widgetMode),
-    dockEdge:
-      resetLegacyWidgetState
-        ? null
-        : candidate.dockEdge === 'left' ||
-            candidate.dockEdge === 'right' ||
-            candidate.dockEdge === 'top' ||
-            candidate.dockEdge === 'bottom'
-          ? candidate.dockEdge
-          : null,
-    normalBounds: isWindowBounds(candidate.normalBounds) ? candidate.normalBounds : null,
+    ...base,
+    dockEdge: resetLegacyWidgetState
+      ? null
+      : base.dockEdge === 'left' || base.dockEdge === 'right' || base.dockEdge === 'top' || base.dockEdge === 'bottom'
+        ? base.dockEdge
+        : null,
+    normalBounds: isWindowBounds(base.normalBounds) ? base.normalBounds : null,
     widgetBounds: resetLegacyWidgetState ? null : widgetBounds,
   }
 }
@@ -152,7 +123,7 @@ async function loadState(): Promise<PersistedState> {
   const filePath = getStateFilePath()
 
   if (!existsSync(filePath)) {
-    return cloneDefaultState()
+    return createDefaultState()
   }
 
   try {
@@ -162,7 +133,7 @@ async function loadState(): Promise<PersistedState> {
     const backupPath = `${filePath}.${Date.now()}.bak`
 
     await fs.rename(filePath, backupPath).catch(() => undefined)
-    return cloneDefaultState()
+    return createDefaultState()
   }
 }
 
@@ -809,6 +780,62 @@ function registerIpcHandlers(): void {
     await flushStateWrite().catch(() => undefined)
     mainWindow?.close()
   })
+
+  ipcMain.handle('app:export-state', async () => {
+    if (!mainWindow) {
+      return false
+    }
+
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: '导出数据',
+      defaultPath: 'todolistss-backup.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    })
+
+    if (canceled || !filePath) {
+      return false
+    }
+
+    await fs.writeFile(filePath, JSON.stringify(persistedState, null, 2), 'utf8')
+    return true
+  })
+
+  ipcMain.handle('app:import-state', async () => {
+    if (!mainWindow) {
+      return null
+    }
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: '导入数据',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return null
+    }
+
+    try {
+      const raw = await fs.readFile(filePaths[0], 'utf8')
+      const imported = sanitizeState(JSON.parse(raw))
+      persistedState = imported
+      await flushStateWrite()
+      return imported
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('app:toggle-auto-start', () => {
+    const current = app.getLoginItemSettings()
+    const next = !current.openAtLogin
+    app.setLoginItemSettings({ openAtLogin: next })
+    return next
+  })
+
+  ipcMain.handle('app:get-auto-start', () => {
+    return app.getLoginItemSettings().openAtLogin
+  })
 }
 
 function createMainWindow(): void {
@@ -845,7 +872,7 @@ function createMainWindow(): void {
     fullscreenable: !persistedState.widgetMode,
     alwaysOnTop: persistedState.widgetMode,
     skipTaskbar: persistedState.widgetMode,
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    icon: createAppIcon(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
@@ -922,6 +949,13 @@ function createMainWindow(): void {
     }
   })
 
+  mainWindow.on('close', (event) => {
+    if (tray && !isRecreatingWindow) {
+      event.preventDefault()
+      mainWindow?.hide()
+    }
+  })
+
   if (VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(VITE_DEV_SERVER_URL)
   } else {
@@ -937,7 +971,7 @@ app.on('window-all-closed', () => {
     return
   }
 
-  if (process.platform !== 'darwin') {
+  if (process.platform !== 'darwin' && !tray) {
     app.quit()
     mainWindow = null
   }
@@ -946,6 +980,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   stopAnimation()
   stopCursorMonitor()
+  globalShortcut.unregisterAll()
 })
 
 app.on('activate', () => {
@@ -958,5 +993,54 @@ app.whenReady().then(async () => {
   nativeTheme.themeSource = 'dark'
   persistedState = await loadState()
   registerIpcHandlers()
+
+  tray = new Tray(createAppIcon())
+  tray.setToolTip('TodoListss')
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: '显示主窗口',
+        click: () => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.show()
+            mainWindow.focus()
+          } else {
+            createMainWindow()
+          }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: '退出',
+        click: () => {
+          tray?.destroy()
+          tray = null
+          app.quit()
+        },
+      },
+    ]),
+  )
+  tray.on('click', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show()
+      mainWindow.focus()
+    } else {
+      createMainWindow()
+    }
+  })
+
+  globalShortcut.register('Ctrl+Shift+T', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide()
+      } else {
+        mainWindow.show()
+        mainWindow.focus()
+      }
+    } else {
+      createMainWindow()
+    }
+  })
+
   createMainWindow()
 })
